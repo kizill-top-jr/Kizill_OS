@@ -1,0 +1,25 @@
+# Object files
+*.o
+
+# Binaries
+*.bin
+*.elf
+*.iso
+
+# Kernel image
+kernel.bin
+kernel.elf
+
+# Boot image
+boot/boot.bin
+
+# ISO and boot image
+kizill.iso
+os-image.bin
+
+# Temporary build directories
+iso/
+
+# All object files in kernel/
+kernel/*.o
+boot/*.o

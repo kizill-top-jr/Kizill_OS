@@ -7,7 +7,7 @@ LDFLAGS = -T kernel/linker.ld -nostdlib
 
 OBJS = boot/start.o kernel/kernel.o kernel/idt.o kernel/timer.o \
        kernel/keyboard.o boot/isr.o kernel/pic.o kernel/shell.o \
-       kernel/memory.o
+       kernel/memory.o kernel/task.o kernel/switch.o
 
 all: kernel.elf
 
@@ -22,6 +22,12 @@ boot/isr.o: boot/isr.asm
 
 kernel/%.o: kernel/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+kernel/task.o: kernel/task.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+kernel/switch.o: kernel/switch.asm
+	$(ASM) -f elf32 kernel/switch.asm -o kernel/switch.o
 
 clean:
 	rm -f boot/*.o kernel/*.o kernel.elf

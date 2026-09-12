@@ -9,8 +9,8 @@ extern void shell_init(void);
 static void task1(void) {
     char *video = (char *)0xB8000;
     while (1) {
-        video[(10 * 80 + 20) * 2]     = '1';
-        video[(10 * 80 + 20) * 2 + 1] = 0x1F;
+        video[(24 * 80 + 70) * 2]     = '1';
+        video[(24 * 80 + 70) * 2 + 1] = 0x1F;
         schedule();
     }
 }
@@ -18,8 +18,8 @@ static void task1(void) {
 static void task2(void) {
     char *video = (char *)0xB8000;
     while (1) {
-        video[(12 * 80 + 50) * 2]     = '2';
-        video[(12 * 80 + 50) * 2 + 1] = 0x1F;
+        video[(24 * 80 + 75) * 2]     = '2';
+        video[(24 * 80 + 75) * 2 + 1] = 0x1F;
         schedule();
     }
 }

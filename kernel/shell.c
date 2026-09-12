@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "shell.h"
+#include "string.h"
 
 #define VIDEO 0xB8000
 #define ROWS 25
@@ -17,10 +18,27 @@ void shell_execute(char *cmd);
 
 static void print_char(char c, uint8_t attr, int row, int col);
 static void print_string(const char *s, uint8_t attr, int row, int col);
-static void clear_screen();
-static void newline();
+static void clear_screen(void);
+static void newline(void);
 
-void shell_init() {
+// trigger real divide-by-zero (not optimizable)
+__attribute__((noinline))
+static void trigger_div0(void) {
+    volatile int zero = 0;
+    volatile int result;
+    asm volatile(
+        "movl $1, %%eax\n"
+        "xorl %%edx, %%edx\n"
+        "divl %1\n"
+        "movl %%eax, %0\n"
+        : "=m"(result)
+        : "r"(zero)
+        : "eax", "edx"
+    );
+    (void)result;
+}
+
+void shell_init(void) {
     print_string("Kizill_OS Shell v1.0\n", 0x1F, SHELL_ROW, 0);
     print_string("> ", 0x0F, cursor_row, cursor_col);
 }
@@ -54,41 +72,46 @@ void shell_execute(char *cmd) {
     while (*cmd == ' ') cmd++;
     if (!*cmd) return;
 
-    if (cmd[0] == 'c' && cmd[1] == 'l' && cmd[2] == 'e' && cmd[3] == 'a' && cmd[4] == 'r') {
+    if (strcmp(cmd, "clear") == 0) {
         clear_screen();
         cursor_row = SHELL_ROW;
         cursor_col = 0;
         print_string("Kizill_OS Shell v1.0\n", 0x1F, SHELL_ROW, 0);
         return;
     }
-    if (cmd[0] == 'h' && cmd[1] == 'e' && cmd[2] == 'l' && cmd[3] == 'p') {
-        print_string("Commands:\n  clear  - clear screen\n  echo   - print text\n  help   - this\n  reboot - reboot (stub)\n  version - OS version\n", 0x0F, cursor_row, cursor_col);
-        cursor_row += 6;
+
+    if (strcmp(cmd, "help") == 0) {
+        print_string("Commands:\n  clear   - clear screen\n  echo    - print text\n  help    - this\n  panic   - trigger exception\n  reboot  - reboot (stub)\n  version - OS version\n", 0x0F, cursor_row, cursor_col);
+        cursor_row += 7;
         return;
     }
-    if (cmd[0] == 'v' && cmd[1] == 'e' && cmd[2] == 'r' && cmd[3] == 's' && cmd[4] == 'i' && cmd[5] == 'o' && cmd[6] == 'n') {
+
+    if (strcmp(cmd, "version") == 0) {
         print_string("Kizill_OS 0.2 (32-bit) - Sep 2026\n", 0x0F, cursor_row, cursor_col);
         cursor_row++;
         return;
     }
-    if (cmd[0] == 'e' && cmd[1] == 'c' && cmd[2] == 'h' && cmd[3] == 'o') {
-        char *p = cmd + 4;
-        while (*p == ' ') p++;
-        if (*p) {
-            print_string(p, 0x0F, cursor_row, cursor_col);
-            cursor_row++;
-        }
+
+    if (strncmp(cmd, "echo ", 5) == 0) {
+        print_string(cmd + 5, 0x0F, cursor_row, cursor_col);
+        cursor_row++;
         return;
     }
-    if (cmd[0] == 'r' && cmd[1] == 'e' && cmd[2] == 'b' && cmd[3] == 'o' && cmd[4] == 'o' && cmd[5] == 't') {
+
+    if (strcmp(cmd, "panic") == 0) {
+        trigger_div0();
+        return;
+    }
+
+    if (strcmp(cmd, "reboot") == 0) {
         print_string("Rebooting...\n", 0x0F, cursor_row, cursor_col);
         while (1) {}
     }
+
     print_string("Unknown. Type 'help'.\n", 0x0F, cursor_row, cursor_col);
     cursor_row++;
 }
 
-// ---- helpers ----
 static void print_char(char c, uint8_t attr, int row, int col) {
     char *video = (char *)VIDEO;
     int pos = (row * COLS + col) * 2;
@@ -110,7 +133,7 @@ static void print_string(const char *s, uint8_t attr, int row, int col) {
     cursor_col = col;
 }
 
-static void clear_screen() {
+static void clear_screen(void) {
     char *video = (char *)VIDEO;
     for (int i = 0; i < ROWS * COLS * 2; i += 2) {
         video[i] = ' ';
@@ -120,7 +143,7 @@ static void clear_screen() {
     cursor_col = 0;
 }
 
-static void newline() {
+static void newline(void) {
     cursor_row++;
     cursor_col = 0;
     if (cursor_row >= ROWS) {

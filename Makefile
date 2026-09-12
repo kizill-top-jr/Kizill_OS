@@ -7,7 +7,8 @@ LDFLAGS = -T kernel/linker.ld -nostdlib
 
 OBJS = boot/start.o kernel/kernel.o kernel/idt.o kernel/timer.o \
        kernel/keyboard.o boot/isr.o kernel/pic.o kernel/shell.o \
-       kernel/memory.o kernel/task.o kernel/switch.o
+       kernel/memory.o kernel/task.o kernel/switch.o kernel/exception.o \
+       kernel/string.o
 
 all: kernel.elf
 

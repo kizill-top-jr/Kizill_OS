@@ -1,22 +1,26 @@
-/* kernel/linker.ld */
 ENTRY(_start)
 
 SECTIONS {
     . = 0x100000;
 
-    .multiboot : {
+    .multiboot : ALIGN(4096) {
         *(.multiboot)
     }
 
-    .text : {
+    .text : ALIGN(4096) {
         *(.text)
     }
 
-    .data : {
+    .rodata : ALIGN(4096) {
+        *(.rodata)
+    }
+
+    .data : ALIGN(4096) {
         *(.data)
     }
 
-    .bss : {
+    .bss : ALIGN(4096) {
+        *(COMMON)
         *(.bss)
     }
 }

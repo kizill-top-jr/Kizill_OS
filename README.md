@@ -47,3 +47,5 @@ menuentry "Kizill_OS" {
 EOF
 grub-mkrescue -o kizill.iso iso/
 qemu-system-x86_64 -cdrom kizill.iso
+
+privet me y0tal1nk

@@ -4,7 +4,7 @@ ASM = nasm
 CFLAGS = -ffreestanding -O2 -Wall -Wextra -nostdlib -mno-red-zone -mcmodel=kernel -Iinclude
 LDFLAGS = -T arch/x86_64/boot/linker.ld -nostdlib -z max-page-size=0x1000
 
-OBJS = arch/x86_64/boot/boot.o kernel/main.o
+OBJS = arch/x86_64/boot/boot.o kernel/main.o kernel/fb.o
 
 all: kernel.elf
 

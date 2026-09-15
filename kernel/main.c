@@ -1,4 +1,5 @@
 #include <kernel/types.h>
+#include <kernel/fb.h>
 
 #define LIMINE_FRAMEBUFFER_REQUEST { \
     0xc7b1dd30df4c8b88, 0x0a82e883a194f07b, \
@@ -64,26 +65,26 @@ static volatile struct limine_framebuffer_request framebuffer_request = {
 __attribute__((section(".limine_requests_end"), used))
 static volatile uint64_t limine_requests_end_marker[4] = LIMINE_REQUESTS_END_MARKER;
 
-static void put_pixel(struct limine_framebuffer *fb, uint64_t x, uint64_t y, uint32_t color) {
-    if (x >= fb->width || y >= fb->height) return;
-    uint32_t *ptr = (uint32_t *)((uint8_t *)fb->address + y * fb->pitch + x * (fb->bpp / 8));
-    *ptr = color;
-}
-
-static void fill_screen(struct limine_framebuffer *fb, uint32_t color) {
-    for (uint64_t y = 0; y < fb->height; y++)
-        for (uint64_t x = 0; x < fb->width; x++)
-            put_pixel(fb, x, y, color);
-}
-
 void kmain(void) {
-    if (framebuffer_request.response == 0 ||
+    if (!framebuffer_request.response ||
         framebuffer_request.response->framebuffer_count < 1) {
         for (;;) asm volatile("hlt");
     }
 
     struct limine_framebuffer *fb = framebuffer_request.response->framebuffers[0];
-    fill_screen(fb, 0x00800000);
+
+    fb_init(fb);
+    fb_clear(FB_BLACK);
+
+    printk_color("Kizill_OS v0.2 x86_64\n", FB_GREEN);
+    printk("boot: Limine, long mode\n");
+    printk("fb: ");
+    printk_dec(fb->width); printk("x");
+    printk_dec(fb->height); printk(" ");
+    printk_dec(fb->bpp); printk("bpp\n");
+    printk("addr: "); printk_hex((u64)fb->address); printk("\n\n");
+
+    printk_color("Hello, world.\n", FB_YELLOW);
 
     for (;;) asm volatile("hlt");
 }

@@ -1,22 +1,21 @@
-# Makefile.64 - x86_64 build for Limine
 CC = x86_64-elf-gcc
 LD = x86_64-elf-ld
 ASM = nasm
-CFLAGS = -ffreestanding -O2 -Wall -Wextra -nostdlib -mno-red-zone -mcmodel=kernel
-LDFLAGS = -T kernel/arch/x86_64/linker.ld -nostdlib -z max-page-size=0x1000
+CFLAGS = -ffreestanding -O2 -Wall -Wextra -nostdlib -mno-red-zone -mcmodel=kernel -Iinclude
+LDFLAGS = -T arch/x86_64/boot/linker.ld -nostdlib -z max-page-size=0x1000
 
-OBJS = kernel/arch/x86_64/boot.o kernel/main.o
+OBJS = arch/x86_64/boot/boot.o kernel/main.o
 
 all: kernel.elf
 
 kernel.elf: $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-kernel/arch/x86_64/boot.o: kernel/arch/x86_64/boot.asm
+arch/x86_64/boot/boot.o: arch/x86_64/boot/boot.asm
 	$(ASM) -f elf64 $< -o $@
 
-kernel/main.o: kernel/main.c
+kernel/%.o: kernel/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f kernel/arch/x86_64/*.o kernel/*.o kernel.elf
+	rm -f arch/x86_64/boot/*.o kernel/*.o kernel.elf

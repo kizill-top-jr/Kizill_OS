@@ -17,3 +17,8 @@ limine/*.EFI
 
 # OS
 .DS_Store
+
+# Object files in subdirs
+kernel/*/*.o
+arch/*/*/*.o
+arch/*/*/*/*.o

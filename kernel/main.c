@@ -1,4 +1,4 @@
-#include <stdint.h>
+#include <kernel/types.h>
 
 #define LIMINE_FRAMEBUFFER_REQUEST { \
     0xc7b1dd30df4c8b88, 0x0a82e883a194f07b, \

@@ -1,5 +1,6 @@
 #include <kernel/types.h>
 #include <kernel/fb.h>
+#include <kernel/gdt.h>
 
 #define LIMINE_FRAMEBUFFER_REQUEST { \
     0xc7b1dd30df4c8b88, 0x0a82e883a194f07b, \
@@ -66,6 +67,7 @@ __attribute__((section(".limine_requests_end"), used))
 static volatile uint64_t limine_requests_end_marker[4] = LIMINE_REQUESTS_END_MARKER;
 
 void kmain(void) {
+   // gdt_init();
     if (!framebuffer_request.response ||
         framebuffer_request.response->framebuffer_count < 1) {
         for (;;) asm volatile("hlt");

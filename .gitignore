@@ -22,3 +22,7 @@ limine/*.EFI
 kernel/*/*.o
 arch/*/*/*.o
 arch/*/*/*/*.o
+
+# QEMU debug logs
+qemu.log
+*.log

@@ -17,7 +17,8 @@ OBJS = arch/x86_64/boot/boot.o \
        kernel/fb.o \
        kernel/serial.o \
        kernel/task.o \
-       kernel/pmm.o
+       kernel/pmm.o \
+       kernel/heap.o
 
 all: kernel.elf
 

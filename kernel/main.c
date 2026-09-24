@@ -1,3 +1,4 @@
+#include <kernel/heap.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
 #include <kernel/gdt.h>
@@ -131,6 +132,31 @@ void kmain(void) {
     void *p4 = pmm_alloc();
     printk("  p4="); printk_hex((u64)p4); printk("\n");
     printk("  used pages: "); printk_dec(pmm_used_pages()); printk("\n\n");
+
+    heap_init();
+    printk_color("heap: init\n", FB_GREEN);
+    printk("  total: "); printk_dec(heap_total_bytes()); printk(" bytes\n");
+    printk("  used:  "); printk_dec(heap_used_bytes());  printk(" bytes\n");
+    printk("  free:  "); printk_dec(heap_free_bytes());  printk(" bytes\n\n");
+
+    // test allocations
+    void *a = kmalloc(64);
+    void *b = kmalloc(128);
+    void *c = kmalloc(1024);
+    printk_color("kmalloc test:\n", FB_YELLOW);
+    printk("  a(64)   = "); printk_hex((u64)a); printk("\n");
+    printk("  b(128)  = "); printk_hex((u64)b); printk("\n");
+    printk("  c(1024) = "); printk_hex((u64)c); printk("\n");
+
+    kfree(b);
+    printk_color("after kfree(b):\n", FB_YELLOW);
+    void *d = kmalloc(64);
+    printk("  d(64)   = "); printk_hex((u64)d); printk("\n");
+    printk("  used:   "); printk_dec(heap_used_bytes()); printk(" bytes\n\n");
+
+    kfree(a);
+    kfree(c);
+    kfree(d);
 
     scheduler_init();
     task_create(task_a, "task_a");

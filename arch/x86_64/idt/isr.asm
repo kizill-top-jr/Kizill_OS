@@ -127,7 +127,7 @@ isr_common:
 .eoi:
     mov al, 0x20
     out 0x20, al
-    out 0xA0, al
+    ; no slave EOI: we only handle master PIC IRQs (0-7) for now
 
 .done:
     pop r15

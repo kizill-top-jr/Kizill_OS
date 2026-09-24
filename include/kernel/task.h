@@ -4,7 +4,7 @@
 #include <kernel/types.h>
 
 #define MAX_TASKS       8
-#define TASK_STACK_SIZE 4096
+#define TASK_STACK_SIZE 16384
 
 typedef struct {
     u64  rsp;       // saved stack pointer

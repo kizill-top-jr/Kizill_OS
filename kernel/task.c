@@ -5,10 +5,6 @@ static task_t tasks[MAX_TASKS];
 static int    task_count = 0;
 static int    current    = 0;
 
-// for diagnostics
-volatile u64 g_switch_count = 0;
-
-// each task gets its own 4 KiB stack, 16-byte aligned
 static u8 stacks[MAX_TASKS][TASK_STACK_SIZE] __attribute__((aligned(16)));
 
 void scheduler_init(void) {
@@ -54,14 +50,8 @@ int task_create(void (*entry)(void), const char *name) {
 
 u64 scheduler_tick(u64 current_rsp) {
     tasks[current].rsp = current_rsp;
-    g_switch_count++;
 
     int next = (current + 1) % task_count;
-
-    if (next == 0 && task_count > 1) {
-        next = 1;
-    }
-
     current = next;
     return tasks[next].rsp;
 }

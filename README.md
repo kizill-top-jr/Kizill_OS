@@ -40,7 +40,7 @@ xorriso -as mkisofs -b limine-bios-cd.bin \
     iso64/ -o kizill64.iso
 
 qemu-system-x86_64 -cdrom kizill64.iso -m 512M -serial stdio
-
+```
 Layout
 
 Each dir has its own README. TL;DR:

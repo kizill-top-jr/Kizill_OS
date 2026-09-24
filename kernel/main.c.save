@@ -56,31 +56,21 @@ static volatile struct limine_framebuffer_request framebuffer_request = {
 __attribute__((section(".limine_requests_end"), used))
 static volatile u64 limine_requests_end_marker[4] = LIMINE_REQUESTS_END_MARKER;
 
+// ---- test tasks ----
+
+// helper: write at absolute screen position (in characters, 8x8 font)
 static void fb_print_at(u64 x, u64 y, char c, u32 color) {
+    // x, y are in character cells
     fb_draw_char(x * 8, y * 8, c, color, FB_BLACK);
 }
 
-// helper: print unsigned number at (x, y) in given color
-static void fb_print_num_at(u64 x, u64 y, u64 v, u32 color) {
-    char buf[24];
-    int n = 0;
-    if (v == 0) buf[n++] = '0';
-    while (v > 0) { buf[n++] = '0' + (v % 10); v /= 10; }
-    for (int i = n - 1; i >= 0; i--) {
-        fb_print_at(x++, y, buf[i], color);
-    }
-}
-
 static void task_a(void) {
+    // actually use fb cursor via printk
     u64 counter = 0;
     while (1) {
         counter++;
-
-        // print only every 100k iterations to not spam the fb
-        if ((counter % 100000) == 0) {
-            fb_print_at(20, 10, 'A', FB_RED);
-            fb_print_at(22, 10, ':', FB_RED);
-            fb_print_num_at(24, 10, counter, FB_RED);
+        if ((counter % 1000000) == 0) {
+            printk_color("A", FB_RED);
         }
     }
 }
@@ -89,16 +79,14 @@ static void task_b(void) {
     u64 counter = 0;
     while (1) {
         counter++;
-
-        if ((counter % 100000) == 0) {
-            fb_print_at(20, 12, 'B', FB_GREEN);
-            fb_print_at(22, 12, ':', FB_GREEN);
-            fb_print_num_at(24, 12, counter, FB_GREEN);
+        if ((counter % 1000000) == 0) {
+            printk_color("B", FB_GREEN);
         }
     }
 }
 
 void kmain(void) {
+    // serial first so we have eyes even if fb dies
     serial_init();
     serial_puts("=== Kizill_OS boot ===\n");
 
@@ -119,17 +107,18 @@ void kmain(void) {
     gdt_init();
     idt_init();
 
+    // set up scheduler and two tasks
     scheduler_init();
     task_create(task_a, "task_a");
     task_create(task_b, "task_b");
 
     printk_color("tasks: a, b, main\n", FB_YELLOW);
-    printk("watching for A/B counters...\n");
     printk("unmask timer + sti\n");
 
     pic_unmask_timer();
     asm volatile("sti");
 
+    // main task just idles here, the timer will switch us out
     for (;;) {
         asm volatile("hlt");
     }

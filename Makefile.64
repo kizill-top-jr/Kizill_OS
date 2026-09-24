@@ -4,18 +4,30 @@ ASM = nasm
 CFLAGS = -ffreestanding -O2 -Wall -Wextra -nostdlib -mno-red-zone -mcmodel=kernel -Iinclude
 LDFLAGS = -T arch/x86_64/boot/linker.ld -nostdlib -z max-page-size=0x1000
 
-OBJS = arch/x86_64/boot/boot.o kernel/main.o kernel/fb.o
+OBJS = arch/x86_64/boot/boot.o \
+       arch/x86_64/gdt/gdt.o \
+       arch/x86_64/gdt/gdt_load.o \
+       arch/x86_64/pic/pic.o \
+       arch/x86_64/idt/idt.o \
+       arch/x86_64/idt/isr.o \
+       arch/x86_64/idt/exception.o \
+       arch/x86_64/idt/timer.o \
+       arch/x86_64/idt/keyboard.o \
+       kernel/main.o \
+       kernel/fb.o \
+       kernel/serial.o \
+       kernel/task.o
 
 all: kernel.elf
 
 kernel.elf: $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-arch/x86_64/boot/boot.o: arch/x86_64/boot/boot.asm
-	$(ASM) -f elf64 $< -o $@
-
-kernel/%.o: kernel/%.c
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+%.o: %.asm
+	$(ASM) -f elf64 $< -o $@
+
 clean:
-	rm -f arch/x86_64/boot/*.o kernel/*.o kernel.elf
+	rm -f arch/x86_64/boot/*.o arch/x86_64/gdt/*.o arch/x86_64/pic/*.o arch/x86_64/idt/*.o kernel/*.o kernel.elf

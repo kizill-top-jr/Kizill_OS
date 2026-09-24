@@ -1,41 +1,60 @@
 # Kizill_OS
 
-A hobby OS written from scratch. Currently x86_64, boots via Limine.
+Hobby OS from scratch. x86_64, no Linux/BSD base, no Buildroot, no Yocto.
+Just C, NASM, and a lot of coffee.
 
-## Status
+## Status: v0.3
 
-`main` — x86_64, work in progress.
-`legacy-32bit` — archived 32-bit version (GRUB + Multiboot1). Kept for reference.
-
-## What works
-
-- Boot via Limine (x86_64 long mode)
-- Framebuffer fill
-
-## What's next
-
-- Framebuffer text output
+**Works:**
+- Boot via Limine into long mode
 - GDT64 + TSS
-- IDT64 + ISRs
-- Preemptive scheduler
-- Memory management
-- Userspace (ring 3)
+- IDT64 + PIC + PIT (100 Hz)
+- Framebuffer text output (8x8 font)
+- Serial debug output (COM1)
+- Preemptive round-robin scheduler (IRQ0 driven)
+- Physical memory manager (bitmap, 4 KiB pages)
+- Heap: kmalloc/kfree
+
+**Doesn't work (yet):**
+- Ring 3 / userspace
+- Syscalls
+- Real drivers (only PS/2 keyboard stub)
+- Disk / FS
+- SMP
 
 ## Build
 
-Requires `x86_64-elf-gcc`, `nasm`, `xorriso`, and Limine binaries.
+Need: `x86_64-elf-gcc`, `x86_64-elf-ld`, `nasm`, `xorriso`, `qemu-system-x86_64`,
+and the Limine binaries (grab 'em per `limine/README.md`).
 
 ```bash
-make -f Makefile.64
-mkdir -p iso64/boot
+make -f Makefile.64 clean && make -f Makefile.64
+
+rm -rf iso64 && mkdir -p iso64/boot
 cp kernel.elf iso64/boot/
 cp limine.conf iso64/
 cp limine/limine-bios.sys limine/limine-bios-cd.bin iso64/
+
 xorriso -as mkisofs -b limine-bios-cd.bin \
     -no-emul-boot -boot-load-size 4 -boot-info-table \
     iso64/ -o kizill64.iso
-qemu-system-x86_64 -cdrom kizill64.iso -m 512M
-```
 
-```privet
-privet me Y0tal1nk
+qemu-system-x86_64 -cdrom kizill64.iso -m 512M -serial stdio
+
+Layout
+
+Each dir has its own README. TL;DR:
+
+    arch/x86_64/ — arch stuff: boot, gdt, idt, pic
+
+    kernel/ — core: fb, serial, task, pmm, heap
+
+    include/kernel/ — headers, mirrors kernel/ + limine structs
+
+    limine/ — bootloader binaries (gitignored)
+
+    docs/ — notes, wip
+
+License
+
+GPLv3. See LICENSE.

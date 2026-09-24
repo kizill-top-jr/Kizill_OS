@@ -16,5 +16,7 @@ SECTIONS {
         *(COMMON)
         *(.bss)
         __bss_end = .;
+    . = ALIGN(4096);
+    __kernel_end = .;
     }
 }

@@ -175,6 +175,9 @@ void kmain(void) {
             printk("\n");
         }
 
+        extern u64 __kernel_end;
+        printk("kernel end: "); printk_hex((u64)&__kernel_end); printk("\n");
+
         printk_color("total usable: ", FB_GREEN);
         printk_dec(total_usable / 1024 / 1024);
         printk(" MB\n\n");

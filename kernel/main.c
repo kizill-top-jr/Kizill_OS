@@ -1,3 +1,4 @@
+#include <kernel/paging.h>
 #include <kernel/heap.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
@@ -71,6 +72,31 @@ static void task_b(void) {
         }
     }
 }
+
+// user program: write("hello ring3!\n", 13); exit(0);
+// compiled by hand, positions computed
+static const u8 user_code[] = {
+    // mov rax, 1          SYS_WRITE
+    0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,
+    // mov rdi, 0          fd
+    0x48, 0xC7, 0xC7, 0x00, 0x00, 0x00, 0x00,
+    // lea rsi, [rip+msg]  buf
+    0x48, 0x8D, 0x35, 0x17, 0x00, 0x00, 0x00,
+    // mov rdx, 13         len
+    0x48, 0xC7, 0xC2, 0x0D, 0x00, 0x00, 0x00,
+    // int 0x80
+    0xCD, 0x80,
+    // mov rax, 60         SYS_EXIT
+    0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00,
+    // xor rdi, rdi        exit code 0
+    0x48, 0x31, 0xFF,
+    // int 0x80
+    0xCD, 0x80,
+    // jmp $               just in case
+    0xEB, 0xFE,
+    // msg: "hello ring3!\n"
+    'h','e','l','l','o',' ','r','i','n','g','3','!','\n',
+};
 
 void kmain(void) {
     serial_init();
@@ -158,9 +184,35 @@ void kmain(void) {
     kfree(c);
     kfree(d);
 
+    // setup user code and stack pages
+    void *code_page  = pmm_alloc();
+    void *stack_page = pmm_alloc();
+    if (!code_page || !stack_page) {
+        printk_color("FATAL: out of memory for user\n", FB_RED);
+        for (;;) asm volatile("hlt");
+    }
+
+    u64 code_phys  = (u64)code_page  - hhdm_request.response->offset;
+    u64 stack_phys = (u64)stack_page - hhdm_request.response->offset;
+
+    if (map_page(0x400000, code_phys,  PTE_PRESENT | PTE_WRITE | PTE_USER) != 0 ||
+        map_page(0x500000, stack_phys, PTE_PRESENT | PTE_WRITE | PTE_USER) != 0) {
+        printk_color("FATAL: map_page failed\n", FB_RED);
+        for (;;) asm volatile("hlt");
+    }
+
+    // copy user code into code_page
+    u8 *dst = (u8 *)code_page;
+    for (u64 i = 0; i < sizeof(user_code); i++) dst[i] = user_code[i];
+
+    printk_color("paging: user code at 0x400000, stack at 0x500000\n", FB_GREEN);
+
     scheduler_init();
     task_create(task_a, "task_a");
     task_create(task_b, "task_b");
+
+    // create user task -- entry address is 0x400000, not a C function
+    task_create_user((void (*)(void))0x400000, "user");
 
     pic_unmask_timer();
     asm volatile("sti");

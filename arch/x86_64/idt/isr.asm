@@ -33,6 +33,51 @@ isr_stub_default:
     push rax
     jmp isr_common
 
+; ---- syscall: int 0x80 ----
+global isr_stub_syscall
+extern syscall_dispatch
+isr_stub_syscall:
+    push qword 0            ; dummy error code
+    push qword 0x80         ; vector
+
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, rsp            ; pass frame to C
+    call syscall_dispatch
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    add rsp, 16
+    iretq
+
 ; ---- timer: this one does the switch ----
 global isr_stub_timer
 isr_stub_timer:

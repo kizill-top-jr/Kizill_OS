@@ -51,6 +51,9 @@ void idt_init(void) {
     set_gate(14, (u64)isr_stub_14,       0x08, 0, 0x8E);
     set_gate(32, (u64)isr_stub_timer,    0x08, 0, 0x8E);
     set_gate(33, (u64)isr_stub_keyboard, 0x08, 0, 0x8E);
+    // syscall gate -- DPL=3 so user code can call int 0x80
+    extern void isr_stub_syscall(void);
+    set_gate(0x80, (u64)isr_stub_syscall, 0x08, 0, 0xEE);
 
     idtr.limit = sizeof(idt) - 1;
     idtr.base  = (u64)&idt;

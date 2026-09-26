@@ -1,3 +1,5 @@
+#include <kernel/tar.h>
+#include <kernel/limine.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
 #include <kernel/gdt.h>
@@ -31,6 +33,11 @@ volatile struct limine_hhdm_request hhdm_request = {
     .id = LIMINE_HHDM_REQUEST, .revision = 0, .response = 0
 };
 
+__attribute__((section(".limine_requests"), used))
+volatile struct limine_module_request module_request = {
+    .id = LIMINE_MODULE_REQUEST, .revision = 0, .response = 0
+};
+
 __attribute__((section(".limine_requests_end"), used))
 volatile u64 limine_requests_end_marker[4] = LIMINE_REQUESTS_END_MARKER;
 
@@ -51,9 +58,9 @@ static void task_a(void) {
     while (1) {
         counter++;
         if ((counter % 100000) == 0) {
-            fb_print_at(20, 10, 'A', FB_RED);
-            fb_print_at(22, 10, ':', FB_RED);
-            fb_print_num_at(24, 10, counter, FB_RED);
+            fb_print_at(70, 22, 'A', FB_RED);
+            fb_print_at(72, 22, ':', FB_RED);
+            fb_print_num_at(74, 22, counter, FB_RED);
         }
     }
 }
@@ -63,9 +70,9 @@ static void task_b(void) {
     while (1) {
         counter++;
         if ((counter % 100000) == 0) {
-            fb_print_at(20, 12, 'B', FB_GREEN);
-            fb_print_at(22, 12, ':', FB_GREEN);
-            fb_print_num_at(24, 12, counter, FB_GREEN);
+            fb_print_at(70, 23, 'B', FB_GREEN);
+            fb_print_at(72, 23, ':', FB_GREEN);
+            fb_print_num_at(74, 23, counter, FB_GREEN);
         }
     }
 }
@@ -138,6 +145,28 @@ void kmain(void) {
     heap_init();
 
     u64 hhdm = hhdm_request.response->offset;
+
+    // --- initramfs ---
+    if (module_request.response && module_request.response->module_count > 0) {
+        struct limine_file *mod = module_request.response->modules[0];
+        printk_color("initramfs: ", FB_YELLOW);
+        printk_dec(mod->size);
+        printk(" bytes\n");
+
+        const u8 *tar = (const u8 *)mod->address;
+        u64 tar_size = mod->size;
+
+        const tar_entry_t *e = 0;
+        while ((e = tar_next(tar, tar_size, e))) {
+            printk("  file: ");
+            printk(e->name);
+            printk("  size: ");
+            printk_dec(e->size);
+            printk("\n");
+        }
+    } else {
+        printk_color("initramfs: no modules\n", FB_RED);
+    }
 
     // child code + stack, parent code + stack
     void *c_code = pmm_alloc();

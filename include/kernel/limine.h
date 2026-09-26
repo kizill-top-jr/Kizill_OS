@@ -76,6 +76,41 @@ struct limine_hhdm_request {
     struct limine_hhdm_response *response;
 };
 
+// ---- modules ----
+struct limine_file {
+    u64 revision;
+    u64 address;
+    u64 size;
+    char *path;
+    char *cmdline;
+    u32 media_type;
+    u32 unused;
+    u32 tftp_ip;
+    u32 tftp_port;
+    u32 partition_index;
+    u32 mbr_disk_id;
+    u64 gpt_disk_uuid;
+    u64 gpt_part_uuid;
+    u64 part_uuid;
+};
+
+struct limine_module_response {
+    u64 revision;
+    u64 module_count;
+    struct limine_file **modules;
+};
+
+struct limine_module_request {
+    u64 id[4];
+    u64 revision;
+    struct limine_module_response *response;
+};
+
+#define LIMINE_MODULE_REQUEST { \
+    0xc7b1dd30df4c8b88, 0x0a82e883a194f07b, \
+    0x3e7e279702be32af, 0xca1c4f3bd1280cee \
+}
+
 // memmap entry types
 #define MEMMAP_USABLE                0
 #define MEMMAP_RESERVED              1

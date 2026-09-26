@@ -31,6 +31,8 @@ void pic_remap(void) {
 }
 
 void pic_unmask_timer(void) {
-    outb(PIC1_DATA, 0xFE);  // IRQ0 only
+    // IRQ0 (timer) + IRQ1 (keyboard)
+    // 0xFC = 1111 1100
+    outb(PIC1_DATA, 0xFC);
     outb(PIC2_DATA, 0xFF);
 }

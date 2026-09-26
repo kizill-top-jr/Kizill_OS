@@ -12,7 +12,6 @@ OBJS = arch/x86_64/boot/boot.o \
        arch/x86_64/idt/isr.o \
        arch/x86_64/idt/exception.o \
        arch/x86_64/idt/timer.o \
-       arch/x86_64/idt/keyboard.o \
        kernel/main.o \
        kernel/fb.o \
        kernel/serial.o \
@@ -22,7 +21,8 @@ OBJS = arch/x86_64/boot/boot.o \
        kernel/paging.o \
        kernel/syscall.o \
        kernel/tar.o \
-       kernel/elf.o
+       kernel/elf.o \
+       kernel/keyboard.o
 
 all: kernel.elf
 

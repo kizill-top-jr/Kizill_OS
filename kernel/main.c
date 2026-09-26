@@ -10,6 +10,7 @@
 #include <kernel/paging.h>
 #include <kernel/limine.h>
 #include <kernel/tar.h>
+#include <kernel/keyboard.h>
 #include <kernel/elf.h>
 
 __attribute__((section(".limine_requests_start"), used))
@@ -103,6 +104,7 @@ void kmain(void) {
 
     gdt_init();
     idt_init();
+    keyboard_init();
     pmm_init();
     heap_init();
 
@@ -118,7 +120,7 @@ void kmain(void) {
     task_create(task_a, "task_a");
     task_create(task_b, "task_b");
 
-    // ---- initramfs: list + parse ----
+    // ---- initramfs: find and load sh.elf ----
     if (module_request.response && module_request.response->module_count > 0) {
         struct limine_file *mod = module_request.response->modules[0];
         printk_color("initramfs: ", FB_YELLOW);
@@ -128,7 +130,6 @@ void kmain(void) {
         const u8 *tar = (const u8 *)mod->address;
         u64 tar_size = mod->size;
 
-        // list all files
         const tar_entry_t *e = 0;
         while ((e = tar_next(tar, tar_size, e))) {
             printk("  file: ");
@@ -138,42 +139,27 @@ void kmain(void) {
             printk("\n");
         }
 
-        // parse hello.elf once, after listing
-        const tar_entry_t *elf_entry = tar_find(tar, tar_size, "hello.elf");
-        if (elf_entry) {
-            printk_color("\nparsing hello.elf:\n", FB_YELLOW);
-            elf_dump(elf_entry->data, elf_entry->size);
-
-            // ---- load it and spawn as user task ----
-            u64 entry = elf_load(elf_entry->data, elf_entry->size);
+        const tar_entry_t *sh = tar_find(tar, tar_size, "sh.elf");
+        if (sh) {
+            u64 entry = elf_load(sh->data, sh->size);
             if (entry) {
-                printk_color("elf: loaded, entry=", FB_GREEN);
+                printk_color("elf: sh.elf loaded, entry=", FB_GREEN);
                 printk_hex(entry);
                 printk("\n");
 
-                // allocate user stack: 2 pages at 0x7FF000..0x800000
                 void *s1 = pmm_alloc();
                 void *s2 = pmm_alloc();
-                if (!s1 || !s2) {
-                    printk_color("elf: no memory for stack\n", FB_RED);
-                } else {
-                    map_page(0x7FF000, (u64)s1 - hhdm,
-                             PTE_PRESENT | PTE_WRITE | PTE_USER);
-                    map_page(0x800000, (u64)s2 - hhdm,
-                             PTE_PRESENT | PTE_WRITE | PTE_USER);
+                map_page(0x7FF000, (u64)s1 - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
+                map_page(0x800000, (u64)s2 - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
 
-                    // spawn user task: entry from ELF, stack top 0x800000
-                    task_create_user((void (*)(void))entry, 0x800000, "hello");
-                    printk_color("user: hello task created\n", FB_YELLOW);
-                }
+                task_create_user((void (*)(void))entry, 0x800000, "sh");
+                printk_color("shell task created\n", FB_YELLOW);
             } else {
-                printk_color("elf: load failed\n", FB_RED);
+                printk_color("elf: sh.elf load failed\n", FB_RED);
             }
         } else {
-            printk_color("hello.elf not found in initramfs\n", FB_RED);
+            printk_color("sh.elf not found\n", FB_RED);
         }
-    } else {
-        printk_color("initramfs: no modules\n", FB_RED);
     }
 
     printk("\n");

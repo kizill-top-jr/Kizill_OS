@@ -156,3 +156,10 @@ int task_check_dead_child(void) {
 int task_current_pid(void) {
     return (int)tasks[current].pid;
 }
+int task_get_current_state(void) {
+    return tasks[current].state;
+}
+
+int task_get_current_pid_or_neg(void) {
+    return (int)tasks[current].pid;
+}

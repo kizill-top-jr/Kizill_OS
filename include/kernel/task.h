@@ -31,5 +31,7 @@ u64   task_exit_current(int code);
 u64   task_block_current(void);
 int   task_check_dead_child(void);
 int   task_current_pid(void);
+int  task_get_current_state(void);
+int  task_get_current_pid_or_neg(void);
 
 #endif

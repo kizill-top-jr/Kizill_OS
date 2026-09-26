@@ -1,3 +1,4 @@
+#include <kernel/elf.h>
 #include <kernel/tar.h>
 #include <kernel/limine.h>
 #include <kernel/types.h>
@@ -156,6 +157,7 @@ void kmain(void) {
         const u8 *tar = (const u8 *)mod->address;
         u64 tar_size = mod->size;
 
+        // list all files
         const tar_entry_t *e = 0;
         while ((e = tar_next(tar, tar_size, e))) {
             printk("  file: ");
@@ -164,8 +166,15 @@ void kmain(void) {
             printk_dec(e->size);
             printk("\n");
         }
-    } else {
-        printk_color("initramfs: no modules\n", FB_RED);
+
+        // parse hello.elf (once, after listing)
+        const tar_entry_t *elf_entry = tar_find(tar, tar_size, "hello.elf");
+        if (elf_entry) {
+            printk_color("\nparsing hello.elf:\n", FB_YELLOW);
+            elf_dump(elf_entry->data, elf_entry->size);
+        } else {
+            printk_color("hello.elf not found in initramfs\n", FB_RED);
+        }
     }
 
     // child code + stack, parent code + stack

@@ -21,7 +21,8 @@ OBJS = arch/x86_64/boot/boot.o \
        kernel/heap.o \
        kernel/paging.o \
        kernel/syscall.o \
-       kernel/tar.o
+       kernel/tar.o \
+       kernel/elf.o
 
 all: kernel.elf
 

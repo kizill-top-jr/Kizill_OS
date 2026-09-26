@@ -37,8 +37,8 @@ isr_stub_default:
 global isr_stub_syscall
 extern syscall_dispatch
 isr_stub_syscall:
-    push qword 0            ; dummy error code
-    push qword 0x80         ; vector
+    push qword 0
+    push qword 0x80
 
     push rax
     push rbx
@@ -56,8 +56,9 @@ isr_stub_syscall:
     push r14
     push r15
 
-    mov rdi, rsp            ; pass frame to C
+    mov rdi, rsp
     call syscall_dispatch
+    mov rsp, rax                ; use returned rsp (may be a different task)
 
     pop r15
     pop r14

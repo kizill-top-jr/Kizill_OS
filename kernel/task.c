@@ -8,12 +8,31 @@ static int    current    = 0;
 
 static u8 stacks[MAX_TASKS][TASK_STACK_SIZE] __attribute__((aligned(16)));
 
+static u64 pick_and_switch(void) {
+    for (int i = 1; i <= task_count; i++) {
+        int c = (current + i) % task_count;
+        if (tasks[c].state == TASK_READY || tasks[c].state == TASK_RUNNING) {
+            current = c;
+            tasks[c].state = TASK_RUNNING;
+
+            u64 kstack_top = (u64)(stacks[c] + TASK_STACK_SIZE);
+            tss_set_rsp0(kstack_top);
+
+            return tasks[c].rsp;
+        }
+    }
+    for (;;) asm volatile("sti; hlt");
+}
+
 void scheduler_init(void) {
     task_count = 1;
     current = 0;
     tasks[0].pid = 0;
+    tasks[0].parent_pid = 0;
     tasks[0].rsp = 0;
-
+    tasks[0].state = TASK_RUNNING;
+    tasks[0].exit_code = 0;
+    tasks[0].is_user = 0;
     const char *n = "main";
     int i = 0;
     while (n[i] && i < 31) { tasks[0].name[i] = n[i]; i++; }
@@ -33,14 +52,16 @@ int task_create(void (*entry)(void), const char *name) {
     *--sp = 0x202;
     *--sp = 0x08;
     *--sp = (u64)entry;
-
     *--sp = 0;
     *--sp = 32;
-
     for (int i = 0; i < 15; i++) *--sp = 0;
 
     tasks[id].rsp = (u64)sp;
     tasks[id].pid = id + 1;
+    tasks[id].parent_pid = tasks[current].pid;
+    tasks[id].state = TASK_READY;
+    tasks[id].exit_code = 0;
+    tasks[id].is_user = 0;
 
     int i = 0;
     while (name[i] && i < 31) { tasks[id].name[i] = name[i]; i++; }
@@ -49,20 +70,7 @@ int task_create(void (*entry)(void), const char *name) {
     return id;
 }
 
-u64 scheduler_tick(u64 current_rsp) {
-    tasks[current].rsp = current_rsp;
-
-    int next = (current + 1) % task_count;
-    current = next;
-
-    // set kernel stack for the next task -- used when CPU switches
-    // from ring 3 to ring 0 on interrupt
-    u64 kstack_top = (u64)(stacks[next] + TASK_STACK_SIZE);
-    tss_set_rsp0(kstack_top);
-
-    return tasks[next].rsp;
-}
-int task_create_user(void (*entry)(void), const char *name) {
+int task_create_user(void (*entry)(void), u64 user_stack, const char *name) {
     if (task_count >= MAX_TASKS) return -1;
     int id = task_count++;
 
@@ -70,21 +78,21 @@ int task_create_user(void (*entry)(void), const char *name) {
     stack_top &= ~0xFULL;
     u64 *sp = (u64 *)stack_top;
 
-    // frame for iretq into ring 3:
-    //   SS:RSP:RFLAGS:CS:RIP
-    *--sp = 0x23;                  // SS = user data | RPL 3
-    *--sp = 0x501000;              // RSP = user stack top
-    *--sp = 0x202;                 // RFLAGS (IF=1)
-    *--sp = 0x1B;                  // CS = user code | RPL 3
-    *--sp = (u64)entry;            // RIP
+    *--sp = 0x23;                       // SS = user data | RPL 3
+    *--sp = user_stack;                 // RSP = user stack (given)
+    *--sp = 0x202;                      // RFLAGS
+    *--sp = 0x1B;                       // CS = user code | RPL 3
+    *--sp = (u64)entry;                 // RIP
 
-    *--sp = 0;                     // error code
-    *--sp = 32;                    // vector
-
+    *--sp = 0;
+    *--sp = 0x80;
     for (int i = 0; i < 15; i++) *--sp = 0;
 
     tasks[id].rsp = (u64)sp;
     tasks[id].pid = id + 1;
+    tasks[id].parent_pid = tasks[current].pid;
+    tasks[id].state = TASK_READY;
+    tasks[id].exit_code = 0;
     tasks[id].is_user = 1;
 
     int i = 0;
@@ -92,4 +100,59 @@ int task_create_user(void (*entry)(void), const char *name) {
     tasks[id].name[i] = 0;
 
     return id;
+}
+
+void task_set_parent(int idx, u64 parent_pid) {
+    if (idx < 0 || idx >= task_count) return;
+    tasks[idx].parent_pid = parent_pid;
+}
+
+u64 scheduler_tick(u64 current_rsp) {
+    tasks[current].rsp = current_rsp;
+    if (tasks[current].state == TASK_RUNNING)
+        tasks[current].state = TASK_READY;
+
+    return pick_and_switch();
+}
+
+u64 task_exit_current(int code) {
+    tasks[current].state = TASK_DEAD;
+    tasks[current].exit_code = code;
+
+    printk_color("[exit] pid=", FB_YELLOW);
+    printk_dec(tasks[current].pid);
+    printk(" code=");
+    printk_dec((u64)(code < 0 ? 0 : code));
+    printk(" name=");
+    printk(tasks[current].name);
+    printk("\n");
+
+    u64 ppid = tasks[current].parent_pid;
+    for (int i = 0; i < task_count; i++) {
+        if (tasks[i].pid == ppid && tasks[i].state == TASK_BLOCKED) {
+            tasks[i].state = TASK_READY;
+            break;
+        }
+    }
+
+    return pick_and_switch();
+}
+
+u64 task_block_current(void) {
+    tasks[current].state = TASK_BLOCKED;
+    return pick_and_switch();
+}
+
+int task_check_dead_child(void) {
+    u64 my_pid = tasks[current].pid;
+    for (int i = 0; i < task_count; i++) {
+        if (tasks[i].parent_pid == my_pid && tasks[i].state == TASK_DEAD) {
+            return tasks[i].exit_code;
+        }
+    }
+    return -1;
+}
+
+int task_current_pid(void) {
+    return (int)tasks[current].pid;
 }

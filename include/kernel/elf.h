@@ -57,4 +57,7 @@ void elf_dump(const u8 *data, u64 size);
 // get entry point, or 0 if invalid
 u64 elf_entry(const u8 *data, u64 size);
 
+// load PT_LOAD segments into memory. returns entry point, or 0 on failure.
+u64 elf_load(const u8 *data, u64 size);
+
 #endif

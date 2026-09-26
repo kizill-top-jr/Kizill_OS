@@ -1,6 +1,3 @@
-#include <kernel/elf.h>
-#include <kernel/tar.h>
-#include <kernel/limine.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
 #include <kernel/gdt.h>
@@ -12,6 +9,8 @@
 #include <kernel/heap.h>
 #include <kernel/paging.h>
 #include <kernel/limine.h>
+#include <kernel/tar.h>
+#include <kernel/elf.h>
 
 __attribute__((section(".limine_requests_start"), used))
 volatile u64 limine_requests_start_marker[4] = LIMINE_REQUESTS_START_MARKER;
@@ -42,6 +41,8 @@ volatile struct limine_module_request module_request = {
 __attribute__((section(".limine_requests_end"), used))
 volatile u64 limine_requests_end_marker[4] = LIMINE_REQUESTS_END_MARKER;
 
+// ---- helpers ----
+
 static void fb_print_at(u64 x, u64 y, char c, u32 color) {
     fb_draw_char(x * 8, y * 8, c, color, FB_BLACK);
 }
@@ -53,6 +54,8 @@ static void fb_print_num_at(u64 x, u64 y, u64 v, u32 color) {
     while (v > 0) { buf[n++] = '0' + (v % 10); v /= 10; }
     for (int i = n - 1; i >= 0; i--) fb_print_at(x++, y, buf[i], color);
 }
+
+// ---- test tasks (preemption proof) ----
 
 static void task_a(void) {
     u64 counter = 0;
@@ -78,50 +81,7 @@ static void task_b(void) {
     }
 }
 
-// ---------------- user programs ----------------
-
-// child: write("C: hello\n", 9); exit(7);
-static const u8 child_code[] = {
-    0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,   // mov rax, 1 (write)
-    0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00,   // mov rdi, 1
-    0x48, 0x8D, 0x35, 0x1B, 0x00, 0x00, 0x00,   // lea rsi, [rip+0x1B]
-    0x48, 0xC7, 0xC2, 0x09, 0x00, 0x00, 0x00,   // mov rdx, 9
-    0xCD, 0x80,                                 // int 0x80
-    0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00,   // mov rax, 60 (exit)
-    0x48, 0xC7, 0xC7, 0x07, 0x00, 0x00, 0x00,   // mov rdi, 7
-    0xCD, 0x80,                                 // int 0x80
-    0xEB, 0xFE,                                 // jmp $
-    'C',':',' ','h','e','l','l','o','\n',
-};
-
-// parent: write("P: start\n", 9);
-//         loop: r=wait(); if (r==-1) goto loop;
-//         write("P: done\n", 8);
-//         exit(r);
-static const u8 parent_code[] = {
-    0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,   // mov rax, 1
-    0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00,   // mov rdi, 1
-    0x48, 0x8D, 0x35, 0x47, 0x00, 0x00, 0x00,   // lea rsi, [rip+0x47]
-    0x48, 0xC7, 0xC2, 0x09, 0x00, 0x00, 0x00,   // mov rdx, 9
-    0xCD, 0x80,                                 // int 0x80
-    // loop:
-    0x48, 0xC7, 0xC0, 0x3D, 0x00, 0x00, 0x00,   // mov rax, 61 (wait)
-    0xCD, 0x80,                                 // int 0x80
-    0x48, 0x83, 0xF8, 0xFF,                     // cmp rax, -1
-    0x74, 0xF1,                                 // je loop
-    0x48, 0x89, 0xC3,                           // mov rbx, rax
-    0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,   // mov rax, 1
-    0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00,   // mov rdi, 1
-    0x48, 0x8D, 0x35, 0x20, 0x00, 0x00, 0x00,   // lea rsi, [rip+0x20]
-    0x48, 0xC7, 0xC2, 0x08, 0x00, 0x00, 0x00,   // mov rdx, 8
-    0xCD, 0x80,                                 // int 0x80
-    0x48, 0xC7, 0xC0, 0x3C, 0x00, 0x00, 0x00,   // mov rax, 60
-    0x48, 0x89, 0xDF,                           // mov rdi, rbx
-    0xCD, 0x80,                                 // int 0x80
-    0xEB, 0xFE,                                 // jmp $
-    'P',':',' ','s','t','a','r','t','\n',
-    'P',':',' ','d','o','n','e','\n',
-};
+// ---- kmain ----
 
 void kmain(void) {
     serial_init();
@@ -129,6 +89,7 @@ void kmain(void) {
 
     if (!framebuffer_request.response ||
         framebuffer_request.response->framebuffer_count < 1) {
+        serial_puts("FATAL: no framebuffer\n");
         for (;;) asm volatile("hlt");
     }
 
@@ -136,7 +97,7 @@ void kmain(void) {
     fb_init(fb);
     fb_clear(FB_BLACK);
 
-    printk_color("Kizill_OS v0.5 x86_64\n", FB_GREEN);
+    printk_color("Kizill_OS v0.6 x86_64\n", FB_GREEN);
     printk("fb:  "); printk_dec(fb->width); printk("x");
     printk_dec(fb->height); printk(" "); printk_dec(fb->bpp); printk("bpp\n\n");
 
@@ -147,7 +108,17 @@ void kmain(void) {
 
     u64 hhdm = hhdm_request.response->offset;
 
-    // --- initramfs ---
+    printk("hhdm: "); printk_hex(hhdm); printk("\n");
+    printk("pmm:  total="); printk_dec(pmm_total_pages());
+    printk(" used=");       printk_dec(pmm_used_pages());
+    printk(" free=");       printk_dec(pmm_total_pages() - pmm_used_pages());
+    printk("\n\n");
+
+    scheduler_init();
+    task_create(task_a, "task_a");
+    task_create(task_b, "task_b");
+
+    // ---- initramfs: list + parse ----
     if (module_request.response && module_request.response->module_count > 0) {
         struct limine_file *mod = module_request.response->modules[0];
         printk_color("initramfs: ", FB_YELLOW);
@@ -167,44 +138,50 @@ void kmain(void) {
             printk("\n");
         }
 
-        // parse hello.elf (once, after listing)
+        // parse hello.elf once, after listing
         const tar_entry_t *elf_entry = tar_find(tar, tar_size, "hello.elf");
         if (elf_entry) {
             printk_color("\nparsing hello.elf:\n", FB_YELLOW);
             elf_dump(elf_entry->data, elf_entry->size);
+
+            // ---- load it and spawn as user task ----
+            u64 entry = elf_load(elf_entry->data, elf_entry->size);
+            if (entry) {
+                printk_color("elf: loaded, entry=", FB_GREEN);
+                printk_hex(entry);
+                printk("\n");
+
+                // allocate user stack: 2 pages at 0x7FF000..0x800000
+                void *s1 = pmm_alloc();
+                void *s2 = pmm_alloc();
+                if (!s1 || !s2) {
+                    printk_color("elf: no memory for stack\n", FB_RED);
+                } else {
+                    map_page(0x7FF000, (u64)s1 - hhdm,
+                             PTE_PRESENT | PTE_WRITE | PTE_USER);
+                    map_page(0x800000, (u64)s2 - hhdm,
+                             PTE_PRESENT | PTE_WRITE | PTE_USER);
+
+                    // spawn user task: entry from ELF, stack top 0x800000
+                    task_create_user((void (*)(void))entry, 0x800000, "hello");
+                    printk_color("user: hello task created\n", FB_YELLOW);
+                }
+            } else {
+                printk_color("elf: load failed\n", FB_RED);
+            }
         } else {
             printk_color("hello.elf not found in initramfs\n", FB_RED);
         }
+    } else {
+        printk_color("initramfs: no modules\n", FB_RED);
     }
 
-    // child code + stack, parent code + stack
-    void *c_code = pmm_alloc();
-    void *c_stk  = pmm_alloc();
-    void *p_code = pmm_alloc();
-    void *p_stk  = pmm_alloc();
-
-    map_page(0x400000, (u64)c_code - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
-    map_page(0x500000, (u64)c_stk  - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
-    map_page(0x600000, (u64)p_code - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
-    map_page(0x700000, (u64)p_stk  - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
-
-    u8 *d;
-    d = (u8 *)c_code; for (u64 i = 0; i < sizeof(child_code); i++) d[i] = child_code[i];
-    d = (u8 *)p_code; for (u64 i = 0; i < sizeof(parent_code); i++) d[i] = parent_code[i];
-
-    scheduler_init();
-    task_create(task_a, "task_a");
-    task_create(task_b, "task_b");
-
-    int child_idx  = task_create_user((void (*)(void))0x400000, 0x501000, "child");
-    int parent_idx = task_create_user((void (*)(void))0x600000, 0x701000, "parent");
-
-    // parent is child's parent: pid = idx + 1
-    task_set_parent(child_idx, (u64)(parent_idx + 1));
-
-    printk_color("user: child + parent, wait-test\n", FB_YELLOW);
+    printk("\n");
+    printk_color("unmask timer + sti\n", FB_YELLOW);
 
     pic_unmask_timer();
     asm volatile("sti");
+
+    // main idles; scheduler + IRQ0 handle the rest
     for (;;) asm volatile("hlt");
 }

@@ -18,6 +18,7 @@ static long sys_call(long n, long a, long b, long c) {
 
 #define SYS_WRITE 1
 #define SYS_READ  0
+#define SYS_YIELD 24
 #define SYS_EXIT  60
 #define SYS_CLEAR 99
 #define SYS_EXEC  100
@@ -42,6 +43,10 @@ static long exec_(const char *name) {
     return sys_call(SYS_EXEC, (long)name, 0, 0);
 }
 
+static long yield_(void) {
+    return sys_call(SYS_YIELD, 0, 0, 0);
+}
+
 static int str_eq(const char *a, const char *b) {
     while (*a && *b) { if (*a != *b) return 0; a++; b++; }
     return *a == 0 && *b == 0;
@@ -56,7 +61,6 @@ static long strlen_(const char *s) {
     long n = 0; while (s[n]) n++; return n;
 }
 
-// strip trailing newline/spaces
 static void strip(char *s) {
     long n = strlen_(s);
     while (n > 0 && (s[n-1] == '\n' || s[n-1] == '\r' || s[n-1] == ' ')) {
@@ -68,19 +72,20 @@ static void strip(char *s) {
 int main(void) {
     char buf[128];
 
-    // clear screen so kernel messages and shell don't overlap
-    sys_call(SYS_CLEAR, 0, 0, 0);
+    clear_();
 
-    write(1, "Kizill_OS Shell v0.1\n", 21);
+    write(1, "Kizill_OS Shell v0.2\n", 21);
 
     while (1) {
         write(1, "> ", 2);
 
-        // read one line (poll in a loop)
         int pos = 0;
         while (1) {
             long n = read_(0, buf + pos, 1);
-            if (n <= 0) continue;   // non-blocking, retry
+            if (n <= 0) {
+                yield_();
+                continue;
+            }
 
             char c = buf[pos];
             if (c == '\n') {
@@ -95,7 +100,6 @@ int main(void) {
                 }
                 continue;
             }
-            // echo
             write(1, &c, 1);
             pos++;
             if (pos >= 127) {

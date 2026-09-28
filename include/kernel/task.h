@@ -26,12 +26,13 @@ int   task_create(void (*entry)(void), const char *name);
 int   task_create_user(void (*entry)(void), u64 user_stack, const char *name);
 void  task_set_parent(int idx, u64 parent_pid);
 u64   scheduler_tick(u64 current_rsp);
+u64   task_yield(u64 current_rsp);
 
 u64   task_exit_current(int code);
 u64   task_block_current(void);
 int   task_check_dead_child(void);
 int   task_current_pid(void);
-int  task_get_current_state(void);
-int  task_get_current_pid_or_neg(void);
+int   task_get_current_state(void);
+int   task_get_current_pid_or_neg(void);
 
 #endif

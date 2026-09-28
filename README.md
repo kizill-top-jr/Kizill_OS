@@ -3,7 +3,7 @@
 Hobby OS from scratch. x86_64, no Linux/BSD base, no Buildroot, no Yocto.
 Just C, NASM, and stubbornness.
 
-## Status: v0.4
+## Status: v0.7
 
 **Works:**
 - Boot via Limine into long mode
@@ -15,26 +15,39 @@ Just C, NASM, and stubbornness.
 - Physical memory manager (bitmap, 4 KiB pages)
 - Heap: kmalloc/kfree
 - 4-level paging with map_page() helper
-- Ring 3 + int 0x80 syscalls (write, exit)
-- One user task runs in ring 3, prints, exits cleanly
+- Ring 3 + int 0x80 syscalls
+  - write, read, yield, getpid, wait, exit, clear, exec
+- Full PS/2 keyboard driver
+  - Shift, Caps Lock, Ctrl, Alt
+  - Arrow keys, Home/End, PgUp/PgDn, Ins/Del
+  - Win/Menu keys
+  - Multimedia keys (Mute, Vol, Play, Calc, ...)
+- initramfs via Limine module (tar format)
+- ELF64 loader (PT_LOAD segments, BSS, user paging)
+- User programs written in C, built by tools/make_initramfs.sh
+- Interactive shell (sh.elf) in ring 3
+- hello.elf as external exec target
 
 **Doesn't work (yet):**
-- Real exit() for user tasks (currently parks in `sti; hlt`)
-- Multiple user processes / fork / exec
-- Real drivers (keyboard is a stub, no disk)
-- FS / ELF loader
+- fork (only exec spawns a child)
+- Signals, kill, waitpid with specific pid
+- Real drivers (disk, mouse, network)
+- FS beyond initramfs
 - SMP, APIC
 
 ## Build
 
 Need: `x86_64-elf-gcc`, `x86_64-elf-ld`, `nasm`, `xorriso`, `qemu-system-x86_64`,
-and the Limine binaries (grab 'em per `limine/README.md`).
+plus Limine binaries (grab 'em per `limine/README.md`).
 
 ```bash
+./tools/make_initramfs.sh
+
 make -f Makefile.64 clean && make -f Makefile.64
 
 rm -rf iso64 && mkdir -p iso64/boot
 cp kernel.elf iso64/boot/
+cp initramfs.tar iso64/boot/
 cp limine.conf iso64/
 cp limine/limine-bios.sys limine/limine-bios-cd.bin iso64/
 
@@ -48,11 +61,15 @@ Layout
 
 Each dir has its own README. TL;DR:
 
-    arch/x86_64/ — arch stuff: boot, gdt, idt (incl. syscall gate), pic
+    arch/x86_64/ — boot, gdt, idt, pic
 
-    kernel/ — core: fb, serial, task, pmm, heap, paging, syscall
+    kernel/ — fb, serial, task, pmm, heap, paging, syscall, tar, elf, keyboard
 
-    include/kernel/ — headers, mirrors kernel/ + limine structs
+    include/kernel/ — headers, mirrors kernel/
+
+    userspace/ — user programs (sh.c, hello.c)
+
+    tools/ — make_initramfs.sh
 
     limine/ — bootloader binaries (gitignored)
 

@@ -47,13 +47,15 @@ int task_create(void (*entry)(void), const char *name) {
     stack_top &= ~0xFULL;
     u64 *sp = (u64 *)stack_top;
 
-    *--sp = 0x10;
-    *--sp = stack_top;
-    *--sp = 0x202;
-    *--sp = 0x08;
-    *--sp = (u64)entry;
-    *--sp = 0;
-    *--sp = 32;
+    *--sp = 0x10;                       // SS
+    *--sp = stack_top;                  // RSP
+    *--sp = 0x202;                      // RFLAGS
+    *--sp = 0x08;                       // CS
+    *--sp = (u64)entry;                 // RIP
+
+    *--sp = 0;                          // errcode
+    *--sp = 32;                         // vector
+
     for (int i = 0; i < 15; i++) *--sp = 0;
 
     tasks[id].rsp = (u64)sp;
@@ -79,7 +81,7 @@ int task_create_user(void (*entry)(void), u64 user_stack, const char *name) {
     u64 *sp = (u64 *)stack_top;
 
     *--sp = 0x23;                       // SS = user data | RPL 3
-    *--sp = user_stack;                 // RSP = user stack (given)
+    *--sp = user_stack;                 // RSP
     *--sp = 0x202;                      // RFLAGS
     *--sp = 0x1B;                       // CS = user code | RPL 3
     *--sp = (u64)entry;                 // RIP
@@ -108,6 +110,14 @@ void task_set_parent(int idx, u64 parent_pid) {
 }
 
 u64 scheduler_tick(u64 current_rsp) {
+    tasks[current].rsp = current_rsp;
+    if (tasks[current].state == TASK_RUNNING)
+        tasks[current].state = TASK_READY;
+
+    return pick_and_switch();
+}
+
+u64 task_yield(u64 current_rsp) {
     tasks[current].rsp = current_rsp;
     if (tasks[current].state == TASK_RUNNING)
         tasks[current].state = TASK_READY;
@@ -156,6 +166,7 @@ int task_check_dead_child(void) {
 int task_current_pid(void) {
     return (int)tasks[current].pid;
 }
+
 int task_get_current_state(void) {
     return tasks[current].state;
 }

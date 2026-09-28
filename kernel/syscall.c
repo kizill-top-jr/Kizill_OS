@@ -10,6 +10,7 @@
 
 #define SYS_WRITE   1
 #define SYS_READ    0
+#define SYS_YIELD   24
 #define SYS_GETPID  39
 #define SYS_EXIT    60
 #define SYS_WAIT    61
@@ -42,7 +43,6 @@ static int do_exec(const char *name) {
     const u8 *tar = (const u8 *)mod->address;
     u64 tar_size = mod->size;
 
-    // ensure null-terminated copy
     char fname[64];
     int i = 0;
     while (name[i] && i < 63) { fname[i] = name[i]; i++; }
@@ -54,7 +54,6 @@ static int do_exec(const char *name) {
     u64 entry = elf_load(e->data, e->size);
     if (!entry) return -1;
 
-    // alloc stack
     void *s1 = pmm_alloc();
     void *s2 = pmm_alloc();
     if (!s1 || !s2) return -1;
@@ -65,7 +64,6 @@ static int do_exec(const char *name) {
     int idx = task_create_user((void (*)(void))entry, 0x800000, fname);
     if (idx < 0) return -1;
 
-    // child of current task
     extern void task_set_parent(int idx, u64 parent_pid);
     task_set_parent(idx, (u64)task_current_pid());
 
@@ -88,29 +86,28 @@ u64 syscall_dispatch(struct syscall_frame *f) {
     }
 
     case SYS_READ: {
-        // rdi = fd, rsi = buf, rdx = len
         char *ubuf = (char *)f->rsi;
         u64 len = f->rdx;
         if (len == 0) { f->rax = 0; return (u64)f; }
 
-        // non-blocking poll: if empty, return 0 (shell will retry)
         if (!keyboard_has_data()) {
             f->rax = 0;
             return (u64)f;
         }
 
-        // copy available chars
         u64 got = 0;
         while (got < len) {
             int c = keyboard_getchar();
             if (c < 0) break;
             ubuf[got++] = (char)c;
-            // return on newline so shell gets a line
             if (c == '\n') break;
         }
         f->rax = got;
         return (u64)f;
     }
+
+    case SYS_YIELD:
+        return task_yield((u64)f);
 
     case SYS_GETPID:
         f->rax = (u64)task_current_pid();

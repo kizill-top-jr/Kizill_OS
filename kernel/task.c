@@ -33,6 +33,7 @@ void scheduler_init(void) {
     tasks[0].state = TASK_RUNNING;
     tasks[0].exit_code = 0;
     tasks[0].is_user = 0;
+    tasks[0].cr3 = 0;   // main uses master PML4
     const char *n = "main";
     int i = 0;
     while (n[i] && i < 31) { tasks[0].name[i] = n[i]; i++; }
@@ -57,7 +58,7 @@ int task_create(void (*entry)(void), const char *name) {
     *--sp = 32;                         // vector
 
     for (int i = 0; i < 15; i++) *--sp = 0;
-
+    tasks[id].cr3 = 0;
     tasks[id].rsp = (u64)sp;
     tasks[id].pid = id + 1;
     tasks[id].parent_pid = tasks[current].pid;
@@ -89,7 +90,7 @@ int task_create_user(void (*entry)(void), u64 user_stack, const char *name) {
     *--sp = 0;
     *--sp = 0x80;
     for (int i = 0; i < 15; i++) *--sp = 0;
-
+    tasks[id].cr3 = 0;
     tasks[id].rsp = (u64)sp;
     tasks[id].pid = id + 1;
     tasks[id].parent_pid = tasks[current].pid;
@@ -173,4 +174,14 @@ int task_get_current_state(void) {
 
 int task_get_current_pid_or_neg(void) {
     return (int)tasks[current].pid;
+}
+
+u64 task_get_cr3(int idx) {
+    if (idx < 0 || idx >= task_count) return 0;
+    return tasks[idx].cr3;
+}
+
+void task_set_cr3(int idx, u64 cr3) {
+    if (idx < 0 || idx >= task_count) return;
+    tasks[idx].cr3 = cr3;
 }

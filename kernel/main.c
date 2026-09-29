@@ -106,9 +106,42 @@ void kmain(void) {
     idt_init();
     keyboard_init();
     pmm_init();
-    heap_init();
 
     u64 hhdm = hhdm_request.response->offset;
+
+    // ---- test pml4_create ----
+    u64 test_pml4 = pml4_create();
+    if (test_pml4) {
+        printk_color("pml4: created at ", FB_GREEN);
+        printk_hex(test_pml4);
+        printk("\n");
+
+        // verify kernel entries copied
+        u64 *master = (u64 *)(hhdm + pml4_master());
+        u64 *newp   = (u64 *)(hhdm + test_pml4);
+
+        int kernel_ok = 1;
+        for (int i = 256; i < 512; i++) {
+            if (master[i] != newp[i]) { kernel_ok = 0; break; }
+        }
+        // user entries must be zero
+        int user_ok = 1;
+        for (int i = 0; i < 256; i++) {
+            if (newp[i] != 0) { user_ok = 0; break; }
+        }
+
+        if (kernel_ok && user_ok) {
+            printk_color("pml4: kernel copied, user empty -- OK\n", FB_GREEN);
+        } else {
+            printk_color("pml4: BAD copy\n", FB_RED);
+        }
+
+        pml4_destroy(test_pml4);
+        printk("pml4: destroyed\n\n");
+    } else {
+        printk_color("pml4: create failed\n", FB_RED);
+    }
+    heap_init();
 
     printk("hhdm: "); printk_hex(hhdm); printk("\n");
     printk("pmm:  total="); printk_dec(pmm_total_pages());

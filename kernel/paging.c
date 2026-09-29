@@ -4,23 +4,78 @@
 
 extern volatile struct limine_hhdm_request hhdm_request;
 
+#define HHDM_BASE 0xFFFF800000000000ULL
+
 static inline u64 hhdm(void) {
-    return hhdm_request.response ? hhdm_request.response->offset : 0;
+    return hhdm_request.response ? hhdm_request.response->offset : HHDM_BASE;
 }
 
-static inline u64 *get_pml4(void) {
+u64 pml4_master(void) {
     u64 cr3;
     asm volatile("mov %%cr3, %0" : "=r"(cr3));
-    return (u64 *)(hhdm() + (cr3 & ~0xFFFULL));
+    return cr3 & ~0xFFFULL;
 }
 
-// walk one level. returns the entry pointer; if not present and create=1,
-// allocates a new page table.
-static u64 *walk(u64 *table, u64 idx, int create, u64 flags) {
+static u64 *pml4_ptr(u64 pml4_phys) {
+    if (pml4_phys == 0) pml4_phys = pml4_master();
+    return (u64 *)(hhdm() + pml4_phys);
+}
+
+u64 pml4_create(void) {
+    void *page = pmm_alloc();
+    if (!page) return 0;
+
+    u64 new_phys = (u64)page - hhdm();
+    u64 *new_pml4 = (u64 *)(hhdm() + new_phys);
+    u64 *master   = pml4_ptr(0);
+
+    // zero all
+    for (int i = 0; i < 512; i++) new_pml4[i] = 0;
+
+    // copy kernel half -- entries 256..511
+    for (int i = 256; i < 512; i++) new_pml4[i] = master[i];
+
+    return new_phys;
+}
+
+void pml4_destroy(u64 pml4_phys) {
+    if (!pml4_phys) return;
+    // TODO: walk user entries 0..255, free each PDPT/PD/PT page.
+    // For now, just free the PML4 page itself.
+    void *page = (void *)(hhdm() + pml4_phys);
+    pmm_free(page);
+}
+
+// walk one level. returns entry pointer, allocates if create=1.
+// 'table_phys' is physical addr of current level table.
+static u64 *walk_in(u64 table_phys, u64 idx, int create, u64 flags) {
+    u64 *table = (u64 *)(hhdm() + table_phys);
     u64 entry = table[idx];
 
     if (entry & PTE_PRESENT) {
-        // for the last level (pt), present means we've hit a page; return
+        return (u64 *)(hhdm() + (entry & ~0xFFFULL));
+    }
+
+    if (!create) return 0;
+
+    void *page = pmm_alloc();
+    if (!page) return 0;
+
+    u64 phys = (u64)page - hhdm();
+    // intermediate table needs PRESENT+WRITE and USER propagated
+    table[idx] = phys | PTE_PRESENT | PTE_WRITE | (flags & PTE_USER);
+
+    u64 *new_table = (u64 *)(hhdm() + phys);
+    for (int i = 0; i < 512; i++) new_table[i] = 0;
+
+    return new_table;
+}
+
+// same, but takes a pointer to the table directly
+static u64 *walk_ptr(u64 *table, u64 idx, int create, u64 flags) {
+    u64 entry = table[idx];
+
+    if (entry & PTE_PRESENT) {
         return (u64 *)(hhdm() + (entry & ~0xFFFULL));
     }
 
@@ -32,35 +87,40 @@ static u64 *walk(u64 *table, u64 idx, int create, u64 flags) {
     u64 phys = (u64)page - hhdm();
     table[idx] = phys | PTE_PRESENT | PTE_WRITE | (flags & PTE_USER);
 
-    // zero the new page table
     u64 *new_table = (u64 *)(hhdm() + phys);
     for (int i = 0; i < 512; i++) new_table[i] = 0;
 
     return new_table;
 }
 
-int map_page(u64 virt, u64 phys, u64 flags) {
-    u64 *pml4 = get_pml4();
+int map_page_in(u64 pml4_phys, u64 virt, u64 phys, u64 flags) {
+    u64 *pml4 = pml4_ptr(pml4_phys);
 
     u64 i4 = (virt >> 39) & 0x1FF;
     u64 i3 = (virt >> 30) & 0x1FF;
     u64 i2 = (virt >> 21) & 0x1FF;
     u64 i1 = (virt >> 12) & 0x1FF;
 
-    u64 *pdpt = walk(pml4, i4, 1, flags); if (!pdpt) return -1;
-    u64 *pd   = walk(pdpt, i3, 1, flags); if (!pd)   return -1;
-    u64 *pt   = walk(pd,   i2, 1, flags); if (!pt)   return -1;
+    u64 *pdpt = walk_ptr(pml4, i4, 1, flags); if (!pdpt) return -1;
+    u64 *pd   = walk_ptr(pdpt, i3, 1, flags); if (!pd)   return -1;
+    u64 *pt   = walk_ptr(pd,   i2, 1, flags); if (!pt)   return -1;
 
     pt[i1] = (phys & ~0xFFFULL) | (flags & 0xFFF) | PTE_PRESENT;
 
-    // flush TLB for this page
-    asm volatile("invlpg (%0)" : : "r"(virt) : "memory");
+    // flush TLB only if we're mapping into the active PML4
+    if (pml4_phys == 0 || pml4_phys == pml4_master()) {
+        asm volatile("invlpg (%0)" : : "r"(virt) : "memory");
+    }
 
     return 0;
 }
 
-u64 virt_to_phys(u64 virt) {
-    u64 *pml4 = get_pml4();
+int map_page(u64 virt, u64 phys, u64 flags) {
+    return map_page_in(0, virt, phys, flags);
+}
+
+u64 virt_to_phys_in(u64 pml4_phys, u64 virt) {
+    u64 *pml4 = pml4_ptr(pml4_phys);
 
     u64 i4 = (virt >> 39) & 0x1FF;
     u64 i3 = (virt >> 30) & 0x1FF;
@@ -81,4 +141,8 @@ u64 virt_to_phys(u64 virt) {
     u64 e1 = pt[i1]; if (!(e1 & PTE_PRESENT)) return 0;
 
     return (e1 & ~0xFFFULL) + off;
+}
+
+u64 virt_to_phys(u64 virt) {
+    return virt_to_phys_in(0, virt);
 }

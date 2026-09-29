@@ -60,4 +60,9 @@ u64 elf_entry(const u8 *data, u64 size);
 // load PT_LOAD segments into memory. returns entry point, or 0 on failure.
 u64 elf_load(const u8 *data, u64 size);
 
+// load PT_LOAD segments into a specific PML4 (physical address).
+// pml4_phys == 0 -> use current PML4.
+// returns entry point, or 0 on failure.
+u64 elf_load_in(u64 pml4_phys, const u8 *data, u64 size);
+
 #endif

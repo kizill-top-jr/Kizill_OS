@@ -46,31 +46,6 @@ void pml4_destroy(u64 pml4_phys) {
     pmm_free(page);
 }
 
-// walk one level. returns entry pointer, allocates if create=1.
-// 'table_phys' is physical addr of current level table.
-static u64 *walk_in(u64 table_phys, u64 idx, int create, u64 flags) {
-    u64 *table = (u64 *)(hhdm() + table_phys);
-    u64 entry = table[idx];
-
-    if (entry & PTE_PRESENT) {
-        return (u64 *)(hhdm() + (entry & ~0xFFFULL));
-    }
-
-    if (!create) return 0;
-
-    void *page = pmm_alloc();
-    if (!page) return 0;
-
-    u64 phys = (u64)page - hhdm();
-    // intermediate table needs PRESENT+WRITE and USER propagated
-    table[idx] = phys | PTE_PRESENT | PTE_WRITE | (flags & PTE_USER);
-
-    u64 *new_table = (u64 *)(hhdm() + phys);
-    for (int i = 0; i < 512; i++) new_table[i] = 0;
-
-    return new_table;
-}
-
 // same, but takes a pointer to the table directly
 static u64 *walk_ptr(u64 *table, u64 idx, int create, u64 flags) {
     u64 entry = table[idx];

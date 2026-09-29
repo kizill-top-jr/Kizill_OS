@@ -68,7 +68,7 @@ static inline u64 round_up_page(u64 v) {
     return (v + 0xFFF) & ~0xFFFULL;
 }
 
-u64 elf_load(const u8 *data, u64 size) {
+u64 elf_load_in(u64 pml4_phys, const u8 *data, u64 size) {
     if (elf_check(data, size) != 0) return 0;
 
     struct elf64_ehdr *h = (struct elf64_ehdr *)data;
@@ -87,34 +87,38 @@ u64 elf_load(const u8 *data, u64 size) {
         u64 flags = PTE_PRESENT | PTE_USER;
         if (ph->p_flags & PF_W) flags |= PTE_WRITE;
 
-        // allocate and map each page, zero them
+        // remember physical addresses of pages we mapped,
+        // so we can write via HHDM without switching CR3.
+        u64 phys_addrs[64];
+        if (npages > 64) return 0;  // sanity
+
         for (u64 p = 0; p < npages; p++) {
             void *page = pmm_alloc();
             if (!page) return 0;
 
             u64 phys = (u64)page - HHDM_BASE;
             u64 va = vaddr_start + p * 0x1000;
+            phys_addrs[p] = (u64)page;   // HHDM virtual addr
 
-            if (map_page(va, phys, flags) != 0) return 0;
+            if (map_page_in(pml4_phys, va, phys, flags) != 0) return 0;
 
+            // zero the page
             u8 *dst = (u8 *)page;
             for (u64 j = 0; j < 0x1000; j++) dst[j] = 0;
         }
 
-        // copy file data into mapped pages via HHDM
+        // copy file data page by page
         u64 src_off = ph->p_offset;
         u64 dst_addr = ph->p_vaddr;
         u64 remaining = ph->p_filesz;
 
         while (remaining > 0) {
+            u64 page_idx = (dst_addr - vaddr_start) / 0x1000;
             u64 page_off = dst_addr & 0xFFF;
             u64 chunk = 0x1000 - page_off;
             if (chunk > remaining) chunk = remaining;
 
-            u64 phys = virt_to_phys(dst_addr);
-            if (phys == 0) return 0;
-
-            u8 *dst = (u8 *)(HHDM_BASE + phys);
+            u8 *dst = (u8 *)(phys_addrs[page_idx] + page_off);
             const u8 *src = data + src_off;
 
             for (u64 j = 0; j < chunk; j++) dst[j] = src[j];
@@ -123,8 +127,12 @@ u64 elf_load(const u8 *data, u64 size) {
             src_off   += chunk;
             remaining -= chunk;
         }
-        // BSS (memsz > filesz) already zeroed above
     }
 
     return h->e_entry;
+}
+
+// legacy: load into current PML4
+u64 elf_load(const u8 *data, u64 size) {
+    return elf_load_in(0, data, size);
 }

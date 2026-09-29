@@ -1,6 +1,7 @@
 #include <kernel/task.h>
 #include <kernel/fb.h>
 #include <kernel/gdt.h>
+#include <kernel/paging.h>
 
 static task_t tasks[MAX_TASKS];
 static int    task_count = 0;
@@ -73,7 +74,8 @@ int task_create(void (*entry)(void), const char *name) {
     return id;
 }
 
-int task_create_user(void (*entry)(void), u64 user_stack, const char *name) {
+int task_create_user(void (*entry)(void), u64 user_stack,
+                     u64 pml4_phys, const char *name) {
     if (task_count >= MAX_TASKS) return -1;
     int id = task_count++;
 
@@ -90,13 +92,14 @@ int task_create_user(void (*entry)(void), u64 user_stack, const char *name) {
     *--sp = 0;
     *--sp = 0x80;
     for (int i = 0; i < 15; i++) *--sp = 0;
-    tasks[id].cr3 = 0;
+
     tasks[id].rsp = (u64)sp;
     tasks[id].pid = id + 1;
     tasks[id].parent_pid = tasks[current].pid;
     tasks[id].state = TASK_READY;
     tasks[id].exit_code = 0;
     tasks[id].is_user = 1;
+    tasks[id].cr3 = pml4_phys;          // NEW
 
     int i = 0;
     while (name[i] && i < 31) { tasks[id].name[i] = name[i]; i++; }
@@ -110,12 +113,28 @@ void task_set_parent(int idx, u64 parent_pid) {
     tasks[idx].parent_pid = parent_pid;
 }
 
+// helper: switch CR3 if the next task uses a different PML4
+static void switch_cr3_to(int next) {
+    u64 new_cr3 = tasks[next].cr3;
+    u64 want = (new_cr3 == 0) ? pml4_master() : new_cr3;
+
+    u64 cur;
+    asm volatile("mov %%cr3, %0" : "=r"(cur));
+    cur &= ~0xFFFULL;
+
+    if (cur != want) {
+        asm volatile("mov %0, %%cr3" : : "r"(want) : "memory");
+    }
+}
+
 u64 scheduler_tick(u64 current_rsp) {
     tasks[current].rsp = current_rsp;
     if (tasks[current].state == TASK_RUNNING)
         tasks[current].state = TASK_READY;
 
-    return pick_and_switch();
+    u64 rsp = pick_and_switch();
+    switch_cr3_to(current);
+    return rsp;
 }
 
 u64 task_yield(u64 current_rsp) {
@@ -123,7 +142,9 @@ u64 task_yield(u64 current_rsp) {
     if (tasks[current].state == TASK_RUNNING)
         tasks[current].state = TASK_READY;
 
-    return pick_and_switch();
+    u64 rsp = pick_and_switch();
+    switch_cr3_to(current);
+    return rsp;
 }
 
 u64 task_exit_current(int code) {

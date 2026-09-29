@@ -51,17 +51,27 @@ static int do_exec(const char *name) {
     const tar_entry_t *e = tar_find(tar, tar_size, fname);
     if (!e) return -1;
 
-    u64 entry = elf_load(e->data, e->size);
-    if (!entry) return -1;
+    // new PML4 for child
+    u64 pml4_phys = pml4_create();
+    if (!pml4_phys) return -1;
 
+    u64 entry = elf_load_in(pml4_phys, e->data, e->size);
+    if (!entry) {
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
+
+    // user stack
     void *s1 = pmm_alloc();
     void *s2 = pmm_alloc();
     if (!s1 || !s2) return -1;
 
-    map_page(0x7FF000, (u64)s1 - HHDM_BASE, PTE_PRESENT | PTE_WRITE | PTE_USER);
-    map_page(0x800000, (u64)s2 - HHDM_BASE, PTE_PRESENT | PTE_WRITE | PTE_USER);
+    map_page_in(pml4_phys, 0x7FF000, (u64)s1 - HHDM_BASE,
+                PTE_PRESENT | PTE_WRITE | PTE_USER);
+    map_page_in(pml4_phys, 0x800000, (u64)s2 - HHDM_BASE,
+                PTE_PRESENT | PTE_WRITE | PTE_USER);
 
-    int idx = task_create_user((void (*)(void))entry, 0x800000, fname);
+    int idx = task_create_user((void (*)(void))entry, 0x800000, pml4_phys, fname);
     if (idx < 0) return -1;
 
     extern void task_set_parent(int idx, u64 parent_pid);

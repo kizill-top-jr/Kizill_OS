@@ -24,7 +24,8 @@ typedef struct {
 
 void  scheduler_init(void);
 int   task_create(void (*entry)(void), const char *name);
-int   task_create_user(void (*entry)(void), u64 user_stack, const char *name);
+int   task_create_user(void (*entry)(void), u64 user_stack,
+                       u64 pml4_phys, const char *name);
 void  task_set_parent(int idx, u64 parent_pid);
 u64   scheduler_tick(u64 current_rsp);
 u64   task_yield(u64 current_rsp);

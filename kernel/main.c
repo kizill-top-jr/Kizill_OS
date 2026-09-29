@@ -174,22 +174,41 @@ void kmain(void) {
 
         const tar_entry_t *sh = tar_find(tar, tar_size, "sh.elf");
         if (sh) {
-            u64 entry = elf_load(sh->data, sh->size);
-            if (entry) {
-                printk_color("elf: sh.elf loaded, entry=", FB_GREEN);
-                printk_hex(entry);
-                printk("\n");
-
-                void *s1 = pmm_alloc();
-                void *s2 = pmm_alloc();
-                map_page(0x7FF000, (u64)s1 - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
-                map_page(0x800000, (u64)s2 - hhdm, PTE_PRESENT | PTE_WRITE | PTE_USER);
-
-                task_create_user((void (*)(void))entry, 0x800000, "sh");
-                printk_color("shell task created\n", FB_YELLOW);
-            } else {
-                printk_color("elf: sh.elf load failed\n", FB_RED);
+            u64 pml4_phys = pml4_create();
+            if (!pml4_phys) {
+                printk_color("elf: pml4_create failed\n", FB_RED);
+                goto shell_done;
             }
+
+            u64 entry = elf_load_in(pml4_phys, sh->data, sh->size);
+            if (!entry) {
+                printk_color("elf: sh.elf load failed\n", FB_RED);
+                pml4_destroy(pml4_phys);
+                goto shell_done;
+            }
+
+            printk_color("elf: sh.elf loaded, entry=", FB_GREEN);
+            printk_hex(entry);
+            printk(", pml4=");
+            printk_hex(pml4_phys);
+            printk("\n");
+
+            void *s1 = pmm_alloc();
+            void *s2 = pmm_alloc();
+            if (!s1 || !s2) {
+                printk_color("elf: no memory for stack\n", FB_RED);
+                goto shell_done;
+            }
+
+            map_page_in(pml4_phys, 0x7FF000, (u64)s1 - hhdm,
+                        PTE_PRESENT | PTE_WRITE | PTE_USER);
+            map_page_in(pml4_phys, 0x800000, (u64)s2 - hhdm,
+                        PTE_PRESENT | PTE_WRITE | PTE_USER);
+
+            task_create_user((void (*)(void))entry, 0x800000, pml4_phys, "sh");
+            printk_color("shell task created\n", FB_YELLOW);
+
+        shell_done: ;
         } else {
             printk_color("sh.elf not found\n", FB_RED);
         }

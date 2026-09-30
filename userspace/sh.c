@@ -20,6 +20,7 @@ static long sys_call(long n, long a, long b, long c) {
 #define SYS_READ  0
 #define SYS_YIELD 24
 #define SYS_EXIT  60
+#define SYS_WAIT  61
 #define SYS_CLEAR 99
 #define SYS_EXEC  100
 
@@ -41,6 +42,10 @@ static long clear_(void) {
 
 static long exec_(const char *name) {
     return sys_call(SYS_EXEC, (long)name, 0, 0);
+}
+
+static long wait_(long pid) {
+    return sys_call(SYS_WAIT, pid, 0, 0);
 }
 
 static long yield_(void) {
@@ -74,7 +79,7 @@ int main(void) {
 
     clear_();
 
-    write(1, "Kizill_OS Shell v0.2\n", 21);
+    write(1, "Kizill_OS Shell v0.3\n", 21);
 
     while (1) {
         write(1, "> ", 2);
@@ -129,7 +134,11 @@ int main(void) {
             write(1, "\n", 1);
         } else if (str_eq(cmd, "hello")) {
             long r = exec_("hello.elf");
-            if (r != 0) write(1, "exec failed\n", 12);
+            if (r != 0) {
+                write(1, "exec failed\n", 12);
+            } else {
+                while (wait_(-1) < 0) yield_();
+            }
         } else {
             write(1, "unknown: ", 9);
             write(1, cmd, strlen_(cmd));

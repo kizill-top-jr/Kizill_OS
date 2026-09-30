@@ -38,12 +38,71 @@ u64 pml4_create(void) {
     return new_phys;
 }
 
+// free a leaf page table entry -- the phys page
+static void free_user_page(u64 pte) {
+    if (!(pte & PTE_PRESENT)) return;
+    u64 phys = pte & ~0xFFFULL;
+    if (phys == 0) return;
+    pmm_free((void *)(hhdm() + phys));
+}
+
+// free a page table (512 entries) and all its children.
+// level 1 = PT (leaves), level 2 = PD, level 3 = PDPT.
+static void free_table_level(u64 table_phys, int level) {
+    u64 *table = (u64 *)(hhdm() + table_phys);
+
+    for (int i = 0; i < 512; i++) {
+        u64 e = table[i];
+        if (!(e & PTE_PRESENT)) continue;
+
+        if (level == 1) {
+            // leaf
+            free_user_page(e);
+        } else if (level == 2) {
+            // could be 2MB huge page
+            if (e & PTE_HUGE) {
+                u64 phys = e & ~0x1FFFFFULL;
+                // huge page is 2MB = 512 small pages
+                for (int j = 0; j < 512; j++) {
+                    pmm_free((void *)(hhdm() + phys + j * 0x1000));
+                }
+            } else {
+                u64 child = e & ~0xFFFULL;
+                free_table_level(child, 1);
+                pmm_free((void *)(hhdm() + child));
+            }
+        } else if (level == 3) {
+            u64 child = e & ~0xFFFULL;
+            free_table_level(child, 2);
+            pmm_free((void *)(hhdm() + child));
+        }
+    }
+}
+
 void pml4_destroy(u64 pml4_phys) {
     if (!pml4_phys) return;
-    // TODO: walk user entries 0..255, free each PDPT/PD/PT page.
-    // For now, just free the PML4 page itself.
-    void *page = (void *)(hhdm() + pml4_phys);
-    pmm_free(page);
+
+    // safety: don't destroy the PML4 currently loaded
+    u64 cur;
+    asm volatile("mov %%cr3, %0" : "=r"(cur));
+    if ((cur & ~0xFFFULL) == pml4_phys) return;
+
+    u64 *pml4 = (u64 *)(hhdm() + pml4_phys);
+
+    // walk user entries 0..255 only.
+    // kernel entries 256..511 are SHARED -- do NOT touch.
+    for (int i = 0; i < 256; i++) {
+        u64 e = pml4[i];
+        if (!(e & PTE_PRESENT)) continue;
+
+        u64 pdpt = e & ~0xFFFULL;
+        free_table_level(pdpt, 3);
+        pmm_free((void *)(hhdm() + pdpt));
+        pml4[i] = 0;
+    }
+
+    // finally the PML4 page itself
+    pmm_free((void *)(hhdm() + pml4_phys));
 }
 
 // same, but takes a pointer to the table directly

@@ -124,8 +124,17 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         return (u64)f;
 
     case SYS_WAIT: {
-        int code = task_check_dead_child();
-        f->rax = (code >= 0) ? (u64)code : (u64)-1;
+        // non-blocking: return child's exit code, or -1 if none dead yet.
+        // user polls with yield().
+        int want = (int)f->rdi;
+        u64 my_pid = (u64)task_current_pid();
+
+        int code;
+        if (task_try_reap(my_pid, want, &code)) {
+            f->rax = (u64)code;
+        } else {
+            f->rax = (u64)-1;
+        }
         return (u64)f;
     }
 

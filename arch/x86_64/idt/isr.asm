@@ -1,6 +1,6 @@
 section .text
 
-extern exception_handler
+extern exception_dispatch
 extern keyboard_handler
 extern scheduler_tick
 
@@ -167,7 +167,9 @@ isr_common:
     jmp .eoi
 
 .exception:
-    call exception_handler
+    mov rdi, rsp
+    call exception_dispatch
+    mov rsp, rax
     jmp .done
 
 .eoi:

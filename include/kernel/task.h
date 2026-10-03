@@ -41,4 +41,14 @@ int   task_try_reap(u64 parent_pid, int want_pid, int *out_code);
 u64   task_get_cr3(int idx);
 void  task_set_cr3(int idx, u64 cr3);
 
+typedef struct {
+    u64  pid;
+    u64  parent_pid;
+    int  state;
+    char name[32];
+} task_info_t;
+
+int task_get_info(int idx, task_info_t *out);
+int task_alive_count(void);
+
 #endif

@@ -16,10 +16,14 @@
 #define SYS_WAIT    61
 #define SYS_CLEAR   99
 #define SYS_EXEC    100
+#define SYS_UPTIME  101
+#define SYS_TASKS   102
+#define SYS_REBOOT  103
 
 #define HHDM_BASE 0xFFFF800000000000ULL
 
 extern volatile struct limine_module_request module_request;
+extern volatile u64 g_ticks;
 
 struct syscall_frame {
     u64 r15, r14, r13, r12, r11, r10, r9, r8;
@@ -33,6 +37,14 @@ static void do_clear(void) {
     fb_clear(FB_BLACK);
     printk_color("Kizill_OS shell\n", FB_GREEN);
     printk("\n");
+}
+
+static void do_reboot(void) {
+    // 0xCF9 = reset control register
+    // 0x06 = warm reset, 0x0E = full reset
+    asm volatile("outb %0, %1" : : "a"((u8)0x06), "Nd"((u16)0xCF9));
+    // if that didn't work, triple fault
+    for (;;) asm volatile("hlt");
 }
 
 static int do_exec(const char *name) {
@@ -51,7 +63,6 @@ static int do_exec(const char *name) {
     const tar_entry_t *e = tar_find(tar, tar_size, fname);
     if (!e) return -1;
 
-    // new PML4 for child
     u64 pml4_phys = pml4_create();
     if (!pml4_phys) return -1;
 
@@ -61,7 +72,6 @@ static int do_exec(const char *name) {
         return -1;
     }
 
-    // user stack
     void *s1 = pmm_alloc();
     void *s2 = pmm_alloc();
     if (!s1 || !s2) return -1;
@@ -89,6 +99,7 @@ u64 syscall_dispatch(struct syscall_frame *f) {
             char c = buf[i];
             if (c == 0) break;
             if (c == '\n') printk("\n");
+            else if (c == '\b') printk("\b");
             else { char s[2] = { c, 0 }; printk(s); }
         }
         f->rax = len;
@@ -100,10 +111,7 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         u64 len = f->rdx;
         if (len == 0) { f->rax = 0; return (u64)f; }
 
-        if (!keyboard_has_data()) {
-            f->rax = 0;
-            return (u64)f;
-        }
+        if (!keyboard_has_data()) { f->rax = 0; return (u64)f; }
 
         u64 got = 0;
         while (got < len) {
@@ -124,11 +132,8 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         return (u64)f;
 
     case SYS_WAIT: {
-        // non-blocking: return child's exit code, or -1 if none dead yet.
-        // user polls with yield().
         int want = (int)f->rdi;
         u64 my_pid = (u64)task_current_pid();
-
         int code;
         if (task_try_reap(my_pid, want, &code)) {
             f->rax = (u64)code;
@@ -149,6 +154,33 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         f->rax = (u64)r;
         return (u64)f;
     }
+
+    case SYS_UPTIME:
+        // g_ticks at 100 Hz -> centiseconds. return ticks for now.
+        f->rax = g_ticks;
+        return (u64)f;
+
+    case SYS_TASKS: {
+        // rdi = buf, rsi = max_count
+        task_info_t *ubuf = (task_info_t *)f->rdi;
+        int maxn = (int)f->rsi;
+        if (maxn <= 0) { f->rax = 0; return (u64)f; }
+
+        int written = 0;
+        for (int i = 0; i < 8 && written < maxn; i++) {
+            task_info_t info;
+            if (task_get_info(i, &info) == 0) {
+                ubuf[written++] = info;
+            }
+        }
+        f->rax = (u64)written;
+        return (u64)f;
+    }
+
+    case SYS_REBOOT:
+        do_reboot();
+        f->rax = 0;
+        return (u64)f;
 
     case SYS_EXIT:
         return task_exit_current((int)f->rdi);

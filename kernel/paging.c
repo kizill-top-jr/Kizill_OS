@@ -10,10 +10,15 @@ static inline u64 hhdm(void) {
     return hhdm_request.response ? hhdm_request.response->offset : HHDM_BASE;
 }
 
+static u64 g_master_pml4 = 0;
+
 u64 pml4_master(void) {
-    u64 cr3;
-    asm volatile("mov %%cr3, %0" : "=r"(cr3));
-    return cr3 & ~0xFFFULL;
+    if (g_master_pml4 == 0) {
+        u64 cr3;
+        asm volatile("mov %%cr3, %0" : "=r"(cr3));
+        g_master_pml4 = cr3 & ~0xFFFULL;
+    }
+    return g_master_pml4;
 }
 
 static u64 *pml4_ptr(u64 pml4_phys) {

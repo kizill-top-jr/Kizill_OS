@@ -182,12 +182,9 @@ static void put_char(char c) {
     } else if (c == '\t') {
         g_cursor_x = (g_cursor_x + 4) & ~3;
     } else if (c == '\b') {
-        // backspace: move cursor left, erase cell
-        if (g_cursor_x > 0) {
-            g_cursor_x--;
-            fb_draw_char(g_cursor_x * FONT_W, g_cursor_y * FONT_H,
-                         ' ', g_fg, g_bg);
-        }
+        // just move cursor left; do NOT erase.
+        // erasing is done explicitly by the caller (space + backspace).
+        if (g_cursor_x > 0) g_cursor_x--;
     } else {
         fb_draw_char(g_cursor_x * FONT_W, g_cursor_y * FONT_H, c, g_fg, g_bg);
         g_cursor_x++;

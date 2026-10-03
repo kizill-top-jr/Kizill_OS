@@ -35,8 +35,8 @@ int main(void) {
 
 // entry point for the ELF binary
 void _start(void) {
+    asm volatile("andq $-16, %rsp");
     int code = main();
     sys_exit(code);
-    // never reached
     for (;;) {}
 }

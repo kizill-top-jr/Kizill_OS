@@ -16,6 +16,8 @@ for src in $USER_DIR/*.c; do
     echo "compiling $name"
     $CC -ffreestanding -nostdlib -static -O2 \
         -fno-stack-protector -mno-red-zone \
+        -mno-sse -mno-sse2 -mno-mmx -mno-avx \
+        -mgeneral-regs-only \
         -o $BUILD_DIR/$name.elf $src
 done
 

@@ -7,7 +7,10 @@ SECTIONS {
     .limine_requests       : ALIGN(4096) { KEEP(*(.limine_requests)) }
     .limine_requests_end   : ALIGN(4096) { KEEP(*(.limine_requests_end)) }
 
-    .text   : ALIGN(4096) { *(.text) }
+    .text   : ALIGN(4096) {
+        __kernel_start = .;
+        *(.text)
+    }
     .rodata : ALIGN(4096) { *(.rodata) }
     .data   : ALIGN(4096) { *(.data) }
 

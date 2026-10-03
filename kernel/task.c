@@ -3,6 +3,8 @@
 #include <kernel/gdt.h>
 #include <kernel/paging.h>
 
+extern volatile u64 g_ticks;
+
 static task_t tasks[MAX_TASKS];
 static int    task_count = 0;
 static int    current    = 0;
@@ -127,7 +129,7 @@ int task_create_user(void (*entry)(void), u64 user_stack,
     u64 *sp = (u64 *)stack_top;
 
     *--sp = 0x23;
-    *--sp = user_stack;
+    *--sp = user_stack & ~0xFULL;   // align to 16 bytes
     *--sp = 0x202;
     *--sp = 0x1B;
     *--sp = (u64)entry;
@@ -158,6 +160,8 @@ void task_set_parent(int idx, u64 parent_pid) {
 }
 
 u64 scheduler_tick(u64 current_rsp) {
+    g_ticks++;
+
     tasks[current].rsp = current_rsp;
     if (tasks[current].state == TASK_RUNNING)
         tasks[current].state = TASK_READY;
@@ -236,4 +240,24 @@ u64 task_get_cr3(int idx) {
 void task_set_cr3(int idx, u64 cr3) {
     if (idx < 0 || idx >= task_count) return;
     tasks[idx].cr3 = cr3;
+}
+
+int task_get_info(int idx, task_info_t *out) {
+    if (idx < 0 || idx >= task_count) return -1;
+    if (tasks[idx].state == TASK_DEAD) return -1;
+
+    out->pid = tasks[idx].pid;
+    out->parent_pid = tasks[idx].parent_pid;
+    out->state = tasks[idx].state;
+    for (int i = 0; i < 32; i++) out->name[i] = tasks[idx].name[i];
+
+    return 0;
+}
+
+int task_alive_count(void) {
+    int n = 0;
+    for (int i = 0; i < task_count; i++) {
+        if (tasks[i].state != TASK_DEAD) n++;
+    }
+    return n;
 }

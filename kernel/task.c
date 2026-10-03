@@ -8,6 +8,7 @@ extern volatile u64 g_ticks;
 static task_t tasks[MAX_TASKS];
 static int    task_count = 0;
 static int    current    = 0;
+static u64    next_pid   = 1;
 
 static u8 stacks[MAX_TASKS][TASK_STACK_SIZE] __attribute__((aligned(16)));
 
@@ -103,7 +104,7 @@ int task_create(void (*entry)(void), const char *name) {
     for (int i = 0; i < 15; i++) *--sp = 0;
 
     tasks[id].rsp = (u64)sp;
-    tasks[id].pid = id + 1;
+    tasks[id].pid = next_pid++;
     tasks[id].parent_pid = tasks[current].pid;
     tasks[id].state = TASK_READY;
     tasks[id].exit_code = 0;
@@ -139,7 +140,7 @@ int task_create_user(void (*entry)(void), u64 user_stack,
     for (int i = 0; i < 15; i++) *--sp = 0;
 
     tasks[id].rsp = (u64)sp;
-    tasks[id].pid = id + 1;
+    tasks[id].pid = next_pid++;
     tasks[id].parent_pid = tasks[current].pid;
     tasks[id].state = TASK_READY;
     tasks[id].exit_code = 0;

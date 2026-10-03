@@ -86,6 +86,7 @@ u64 elf_load_in(u64 pml4_phys, const u8 *data, u64 size) {
 
         u64 flags = PTE_PRESENT | PTE_USER;
         if (ph->p_flags & PF_W) flags |= PTE_WRITE;
+        if (!(ph->p_flags & PF_X)) flags |= PTE_NX;
 
         // remember physical addresses of pages we mapped,
         // so we can write via HHDM without switching CR3.

@@ -16,7 +16,7 @@ u64 pml4_master(void) {
     if (g_master_pml4 == 0) {
         u64 cr3;
         asm volatile("mov %%cr3, %0" : "=r"(cr3));
-        g_master_pml4 = cr3 & ~0xFFFULL;
+        g_master_pml4 = cr3 & 0x000FFFFFFFFFF000ULL;
     }
     return g_master_pml4;
 }
@@ -46,7 +46,7 @@ u64 pml4_create(void) {
 // free a leaf page table entry -- the phys page
 static void free_user_page(u64 pte) {
     if (!(pte & PTE_PRESENT)) return;
-    u64 phys = pte & ~0xFFFULL;
+    u64 phys = pte & 0x000FFFFFFFFFF000ULL;
     if (phys == 0) return;
     pmm_free((void *)(hhdm() + phys));
 }
@@ -66,18 +66,18 @@ static void free_table_level(u64 table_phys, int level) {
         } else if (level == 2) {
             // could be 2MB huge page
             if (e & PTE_HUGE) {
-                u64 phys = e & ~0x1FFFFFULL;
+                u64 phys = e & 0x000FFFFFFFE00000ULL;
                 // huge page is 2MB = 512 small pages
                 for (int j = 0; j < 512; j++) {
                     pmm_free((void *)(hhdm() + phys + j * 0x1000));
                 }
             } else {
-                u64 child = e & ~0xFFFULL;
+                u64 child = e & 0x000FFFFFFFFFF000ULL;
                 free_table_level(child, 1);
                 pmm_free((void *)(hhdm() + child));
             }
         } else if (level == 3) {
-            u64 child = e & ~0xFFFULL;
+            u64 child = e & 0x000FFFFFFFFFF000ULL;
             free_table_level(child, 2);
             pmm_free((void *)(hhdm() + child));
         }
@@ -90,7 +90,7 @@ void pml4_destroy(u64 pml4_phys) {
     // safety: don't destroy the PML4 currently loaded
     u64 cur;
     asm volatile("mov %%cr3, %0" : "=r"(cur));
-    if ((cur & ~0xFFFULL) == pml4_phys) return;
+    if ((cur & 0x000FFFFFFFFFF000ULL) == pml4_phys) return;
 
     u64 *pml4 = (u64 *)(hhdm() + pml4_phys);
 
@@ -100,7 +100,7 @@ void pml4_destroy(u64 pml4_phys) {
         u64 e = pml4[i];
         if (!(e & PTE_PRESENT)) continue;
 
-        u64 pdpt = e & ~0xFFFULL;
+        u64 pdpt = e & 0x000FFFFFFFFFF000ULL;
         free_table_level(pdpt, 3);
         pmm_free((void *)(hhdm() + pdpt));
         pml4[i] = 0;
@@ -115,7 +115,7 @@ static u64 *walk_ptr(u64 *table, u64 idx, int create, u64 flags) {
     u64 entry = table[idx];
 
     if (entry & PTE_PRESENT) {
-        return (u64 *)(hhdm() + (entry & ~0xFFFULL));
+        return (u64 *)(hhdm() + (entry & 0x000FFFFFFFFFF000ULL));
     }
 
     if (!create) return 0;
@@ -144,7 +144,10 @@ int map_page_in(u64 pml4_phys, u64 virt, u64 phys, u64 flags) {
     u64 *pd   = walk_ptr(pdpt, i3, 1, flags); if (!pd)   return -1;
     u64 *pt   = walk_ptr(pd,   i2, 1, flags); if (!pt)   return -1;
 
-    pt[i1] = (phys & ~0xFFFULL) | (flags & 0xFFF) | PTE_PRESENT;
+    pt[i1] = (phys & 0x000FFFFFFFFFF000ULL)
+           | (flags & 0xFFF)
+           | PTE_PRESENT
+           | (flags & PTE_NX);
 
     // flush TLB only if we're mapping into the active PML4
     if (pml4_phys == 0 || pml4_phys == pml4_master()) {
@@ -168,18 +171,18 @@ u64 virt_to_phys_in(u64 pml4_phys, u64 virt) {
     u64 off = virt & 0xFFF;
 
     u64 e4 = pml4[i4]; if (!(e4 & PTE_PRESENT)) return 0;
-    u64 *pdpt = (u64 *)(hhdm() + (e4 & ~0xFFFULL));
+    u64 *pdpt = (u64 *)(hhdm() + (e4 & 0x000FFFFFFFFFF000ULL));
 
     u64 e3 = pdpt[i3]; if (!(e3 & PTE_PRESENT)) return 0;
-    u64 *pd = (u64 *)(hhdm() + (e3 & ~0xFFFULL));
+    u64 *pd = (u64 *)(hhdm() + (e3 & 0x000FFFFFFFFFF000ULL));
 
     u64 e2 = pd[i2]; if (!(e2 & PTE_PRESENT)) return 0;
-    if (e2 & PTE_HUGE) return (e2 & ~0x1FFFFFULL) + (virt & 0x1FFFFF);
+    if (e2 & PTE_HUGE) return (e2 & 0x000FFFFFFFE00000ULL) + (virt & 0x1FFFFF);
 
-    u64 *pt = (u64 *)(hhdm() + (e2 & ~0xFFFULL));
+    u64 *pt = (u64 *)(hhdm() + (e2 & 0x000FFFFFFFFFF000ULL));
     u64 e1 = pt[i1]; if (!(e1 & PTE_PRESENT)) return 0;
 
-    return (e1 & ~0xFFFULL) + off;
+    return (e1 & 0x000FFFFFFFFFF000ULL) + off;
 }
 
 u64 virt_to_phys(u64 virt) {

@@ -4,10 +4,11 @@
 #include <kernel/types.h>
 
 // flags
-#define PTE_PRESENT   (1ULL << 0)
-#define PTE_WRITE     (1ULL << 1)
-#define PTE_USER      (1ULL << 2)
-#define PTE_HUGE      (1ULL << 7)
+#define PTE_PRESENT  (1ULL << 0)
+#define PTE_WRITE    (1ULL << 1)
+#define PTE_USER     (1ULL << 2)
+#define PTE_HUGE     (1ULL << 7)
+#define PTE_NX       (1ULL << 63)
 
 // create new PML4 -- copies kernel entries 256..511 from master.
 // returns physical address of PML4, or 0 on failure.

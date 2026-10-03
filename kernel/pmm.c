@@ -112,16 +112,7 @@ void pmm_init(void) {
     // now mark used: bitmap itself, kernel, framebuffer
     mark_used(bitmap_phys, bitmap_bytes);
 
-    // kernel physical range: kernel is at virtual 0xFFFFFFFF80000000,
-    // and that maps to physical 0 in our case?  Let's just mark everything
-    // below __kernel_end_phys as used.
-    extern u64 __kernel_start;
-    extern u64 __kernel_end;
-    u64 k_phys_start = (u64)&__kernel_start - hhdm_offset;
-    u64 k_phys_end   = (u64)&__kernel_end   - hhdm_offset;
-    mark_used(k_phys_start, k_phys_end - k_phys_start);
-
-    // framebuffer — mark its whole range as used
+    // framebuffer - mark its whole range as used
     extern volatile struct limine_framebuffer_request framebuffer_request;
     if (framebuffer_request.response &&
         framebuffer_request.response->framebuffer_count > 0) {

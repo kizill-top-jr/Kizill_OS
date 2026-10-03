@@ -86,26 +86,37 @@ static void task_b(void) {
 
 void kmain(void) {
     serial_init();
-    serial_puts("=== Kizill_OS boot ===\n");
+    serial_puts("=== boot 1: serial ok ===\n");
 
+    serial_puts("=== boot 2: fb check ===\n");
     if (!framebuffer_request.response ||
         framebuffer_request.response->framebuffer_count < 1) {
         serial_puts("FATAL: no framebuffer\n");
         for (;;) asm volatile("hlt");
     }
+    serial_puts("=== boot 3: fb resp ok ===\n");
 
     struct limine_framebuffer *fb = framebuffer_request.response->framebuffers[0];
+    serial_puts("=== boot 4: fb ptr ok ===\n");
     fb_init(fb);
+    serial_puts("=== boot 5: fb_init ok ===\n");
     fb_clear(FB_BLACK);
+    serial_puts("=== boot 6: fb_clear ok ===\n");
 
     printk_color("Kizill_OS v0.6 x86_64\n", FB_GREEN);
+    serial_puts("=== boot 7: printk ok ===\n");
     printk("fb:  "); printk_dec(fb->width); printk("x");
     printk_dec(fb->height); printk(" "); printk_dec(fb->bpp); printk("bpp\n\n");
 
+    serial_puts("=== boot 8: gdt ===\n");
     gdt_init();
+    serial_puts("=== boot 9: gdt ok ===\n");
     idt_init();
+    serial_puts("=== boot 10: idt ok ===\n");
     keyboard_init();
+    serial_puts("=== boot 11: kbd ok ===\n");
     pmm_init();
+    serial_puts("=== boot 12: pmm ok ===\n");
 
     u64 hhdm = hhdm_request.response->offset;
 
@@ -142,6 +153,7 @@ void kmain(void) {
         printk_color("pml4: create failed\n", FB_RED);
     }
     heap_init();
+    serial_puts("=== boot 13: heap ok ===\n");
 
     printk("hhdm: "); printk_hex(hhdm); printk("\n");
     printk("pmm:  total="); printk_dec(pmm_total_pages());
@@ -149,6 +161,7 @@ void kmain(void) {
     printk(" free=");       printk_dec(pmm_total_pages() - pmm_used_pages());
     printk("\n\n");
 
+    serial_puts("=== boot 14: pml4 test ===\n");
     scheduler_init();
     task_create(task_a, "task_a");
     task_create(task_b, "task_b");
@@ -219,7 +232,7 @@ void kmain(void) {
 
     pic_unmask_timer();
     asm volatile("sti");
-
+    serial_puts("=== boot 15: reached idle ===\n");
     // main idles; scheduler + IRQ0 handle the rest
     for (;;) asm volatile("hlt");
 }

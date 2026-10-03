@@ -82,41 +82,73 @@ static void task_b(void) {
     }
 }
 
+static int spawn_shell(void) {
+    if (!module_request.response || module_request.response->module_count == 0)
+        return -1;
+
+    struct limine_file *mod = module_request.response->modules[0];
+    const u8 *tar = (const u8 *)mod->address;
+    u64 tar_size = mod->size;
+
+    const tar_entry_t *sh = tar_find(tar, tar_size, "sh.elf");
+    if (!sh) return -1;
+
+    u64 pml4_phys = pml4_create();
+    if (!pml4_phys) return -1;
+
+    u64 entry = elf_load_in(pml4_phys, sh->data, sh->size);
+    if (!entry) {
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
+
+    void *s1 = pmm_alloc();
+    void *s2 = pmm_alloc();
+    if (!s1 || !s2) {
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
+
+    extern volatile struct limine_hhdm_request hhdm_request;
+    u64 hhdm = hhdm_request.response->offset;
+
+    map_page_in(pml4_phys, 0x7FF000, (u64)s1 - hhdm,
+                PTE_PRESENT | PTE_WRITE | PTE_USER);
+    map_page_in(pml4_phys, 0x800000, (u64)s2 - hhdm,
+                PTE_PRESENT | PTE_WRITE | PTE_USER);
+
+    int idx = task_create_user((void (*)(void))entry, 0x800000, pml4_phys, "sh");
+    if (idx < 0) {
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
+
+    return idx;
+}
+
 // ---- kmain ----
 
 void kmain(void) {
     serial_init();
-    serial_puts("=== boot 1: serial ok ===\n");
 
-    serial_puts("=== boot 2: fb check ===\n");
     if (!framebuffer_request.response ||
         framebuffer_request.response->framebuffer_count < 1) {
         serial_puts("FATAL: no framebuffer\n");
         for (;;) asm volatile("hlt");
     }
-    serial_puts("=== boot 3: fb resp ok ===\n");
 
     struct limine_framebuffer *fb = framebuffer_request.response->framebuffers[0];
-    serial_puts("=== boot 4: fb ptr ok ===\n");
     fb_init(fb);
-    serial_puts("=== boot 5: fb_init ok ===\n");
     fb_clear(FB_BLACK);
-    serial_puts("=== boot 6: fb_clear ok ===\n");
 
     printk_color("Kizill_OS v0.6 x86_64\n", FB_GREEN);
-    serial_puts("=== boot 7: printk ok ===\n");
     printk("fb:  "); printk_dec(fb->width); printk("x");
     printk_dec(fb->height); printk(" "); printk_dec(fb->bpp); printk("bpp\n\n");
 
-    serial_puts("=== boot 8: gdt ===\n");
     gdt_init();
-    serial_puts("=== boot 9: gdt ok ===\n");
     idt_init();
-    serial_puts("=== boot 10: idt ok ===\n");
     keyboard_init();
-    serial_puts("=== boot 11: kbd ok ===\n");
     pmm_init();
-    serial_puts("=== boot 12: pmm ok ===\n");
 
     u64 hhdm = hhdm_request.response->offset;
 
@@ -153,7 +185,6 @@ void kmain(void) {
         printk_color("pml4: create failed\n", FB_RED);
     }
     heap_init();
-    serial_puts("=== boot 13: heap ok ===\n");
 
     printk("hhdm: "); printk_hex(hhdm); printk("\n");
     printk("pmm:  total="); printk_dec(pmm_total_pages());
@@ -161,78 +192,39 @@ void kmain(void) {
     printk(" free=");       printk_dec(pmm_total_pages() - pmm_used_pages());
     printk("\n\n");
 
-    serial_puts("=== boot 14: pml4 test ===\n");
     scheduler_init();
     task_create(task_a, "task_a");
     task_create(task_b, "task_b");
 
-    // ---- initramfs: find and load sh.elf ----
-    if (module_request.response && module_request.response->module_count > 0) {
-        struct limine_file *mod = module_request.response->modules[0];
-        printk_color("initramfs: ", FB_YELLOW);
-        printk_dec(mod->size);
-        printk(" bytes\n");
+   serial_puts("=== boot ok ===\n");
+   spawn_shell();
 
-        const u8 *tar = (const u8 *)mod->address;
-        u64 tar_size = mod->size;
+   // ---- initramfs info (optional) ----
+   if (module_request.response && module_request.response->module_count > 0) {
+       struct limine_file *mod = module_request.response->modules[0];
+       printk_color("initramfs: ", FB_YELLOW);
+       printk_dec(mod->size);
+       printk(" bytes\n");
+   }
 
-        const tar_entry_t *e = 0;
-        while ((e = tar_next(tar, tar_size, e))) {
-            printk("  file: ");
-            printk(e->name);
-            printk("  size: ");
-            printk_dec(e->size);
-            printk("\n");
-        }
+   printk("\n");
+   printk_color("unmask timer + sti\n", FB_YELLOW);
 
-        const tar_entry_t *sh = tar_find(tar, tar_size, "sh.elf");
-        if (sh) {
-            u64 pml4_phys = pml4_create();
-            if (!pml4_phys) {
-                printk_color("elf: pml4_create failed\n", FB_RED);
-                goto shell_done;
-            }
+   pic_unmask_timer();
+   asm volatile("sti");
 
-            u64 entry = elf_load_in(pml4_phys, sh->data, sh->size);
-            if (!entry) {
-                printk_color("elf: sh.elf load failed\n", FB_RED);
-                pml4_destroy(pml4_phys);
-                goto shell_done;
-            }
+   int code;
+   int shell_alive = 1;
+   for (;;) {
+       while (task_try_reap(0, -1, &code)) { }
 
-            printk_color("elf: sh.elf loaded, entry=", FB_GREEN);
-            printk_hex(entry);
-            printk(", pml4=");
-            printk_hex(pml4_phys);
-            printk("\n");
+       if (shell_alive && !task_is_alive_by_name("sh")) {
+           shell_alive = 0;
+           printk_color("[init] shell died, respawning...\n", FB_YELLOW);
+           spawn_shell();
+           shell_alive = 1;
+       }
 
-            void *s1 = pmm_alloc();
-            void *s2 = pmm_alloc();
-            if (!s1 || !s2) {
-                printk_color("elf: no memory for stack\n", FB_RED);
-                goto shell_done;
-            }
-
-            map_page_in(pml4_phys, 0x7FF000, (u64)s1 - hhdm,
-                        PTE_PRESENT | PTE_WRITE | PTE_USER);
-            map_page_in(pml4_phys, 0x800000, (u64)s2 - hhdm,
-                        PTE_PRESENT | PTE_WRITE | PTE_USER);
-
-            task_create_user((void (*)(void))entry, 0x800000, pml4_phys, "sh");
-            printk_color("shell task created\n", FB_YELLOW);
-
-        shell_done: ;
-        } else {
-            printk_color("sh.elf not found\n", FB_RED);
-        }
-    }
-
-    printk("\n");
-    printk_color("unmask timer + sti\n", FB_YELLOW);
-
-    pic_unmask_timer();
-    asm volatile("sti");
-    serial_puts("=== boot 15: reached idle ===\n");
-    // main idles; scheduler + IRQ0 handle the rest
-    for (;;) asm volatile("hlt");
+       asm volatile("hlt");
+   }
 }

@@ -195,6 +195,14 @@ u64 task_exit_current(int code) {
     printk("\n");
 
     u64 dead_pid = tasks[current].pid;
+    // reparent orphans to pid 0 (main / init) btw
+    for (int i = 0; i < task_count; i++) {
+        if (i == current) continue;
+        if (tasks[i].state == TASK_DEAD) continue;
+        if (tasks[i].parent_pid == tasks[current].pid) {
+            tasks[i].parent_pid = 0;
+        }
+    }
     wake_waiters_of(dead_pid);
 
     u64 rsp = pick_and_switch();
@@ -252,6 +260,17 @@ int task_get_info(int idx, task_info_t *out) {
     out->state = tasks[idx].state;
     for (int i = 0; i < 32; i++) out->name[i] = tasks[idx].name[i];
 
+    return 0;
+}
+
+int task_is_alive_by_name(const char *name) {
+    for (int i = 0; i < task_count; i++) {
+        if (tasks[i].state == TASK_DEAD) continue;
+        if (tasks[i].state == TASK_ZOMBIE) continue;
+        int j = 0;
+        while (name[j] && tasks[i].name[j] && name[j] == tasks[i].name[j]) j++;
+        if (name[j] == 0 && tasks[i].name[j] == 0) return 1;
+    }
     return 0;
 }
 

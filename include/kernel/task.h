@@ -50,5 +50,6 @@ typedef struct {
 
 int task_get_info(int idx, task_info_t *out);
 int task_alive_count(void);
+int task_is_alive_by_name(const char *name);
 
 #endif

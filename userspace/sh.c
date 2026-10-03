@@ -98,6 +98,9 @@ static int str_pref(const char *a, const char *p) {
 static long strlen_(const char *s) {
     long n = 0; while (s[n]) n++; return n;
 }
+static void print(const char *s) {
+   write(1, s, strlen_(s));
+}
 static void str_copy(char *dst, const char *src) {
     while (*src) *dst++ = *src++;
     *dst = 0;
@@ -283,59 +286,59 @@ int main(void) {
             str_copy(history[MAX_HIST-1], cmd);
         }
 
-        if (str_eq(cmd, "help")) {
-            write(1, "commands:\n"
-                     "  help     - this\n"
-                     "  clear    - clear screen\n"
-                     "  echo X   - print X\n"
-                     "  uname    - OS name\n"
-                     "  pid      - current pid\n"
-                     "  uptime   - seconds since boot\n"
-                     "  ps       - list tasks\n"
-                     "  hello    - run hello.elf\n"
-                     "  reboot   - reboot system\n"
-                     "  exit     - leave shell\n", 260);
-        } else if (str_eq(cmd, "clear")) {
-            clear_();
-        } else if (str_eq(cmd, "exit")) {
-            exit_(0);
-        } else if (str_eq(cmd, "uname")) {
-            write(1, "Kizill_OS x86_64\n", 17);
-        } else if (str_eq(cmd, "pid")) {
-            write(1, "pid: ", 5); print_dec(getpid_()); write(1, "\n", 1);
-        } else if (str_eq(cmd, "uptime")) {
-            long t = uptime_();
-            write(1, "up ", 3); print_dec(t / 100);
-            write(1, ".", 1); print_dec(t % 100);
-            write(1, " seconds\n", 9);
-        } else if (str_eq(cmd, "ps")) {
-            struct task_info list[8];
-            long n = tasks_(list, 8);
-            write(1, "pid  ppid state  name\n", 22);
-            for (long i = 0; i < n; i++) {
-                print_dec(list[i].pid);  write(1, "    ", 4);
-                print_dec(list[i].parent_pid); write(1, "    ", 4);
-                const char *s = state_name(list[i].state);
-                write(1, s, strlen_(s)); write(1, "    ", 4);
-                write(1, list[i].name, strlen_(list[i].name));
-                write(1, "\n", 1);
-            }
-        } else if (str_eq(cmd, "reboot")) {
-            write(1, "rebooting...\n", 13);
-            yield_();
-            reboot_();
-        } else if (str_pref(cmd, "echo ")) {
-            const char *p = cmd + 5;
-            write(1, p, strlen_(p)); write(1, "\n", 1);
-        } else if (str_eq(cmd, "hello")) {
-            long r = exec_("hello.elf");
-            if (r != 0) write(1, "exec failed\n", 12);
-            else { while (wait_(-1) < 0) yield_(); }
-        } else {
-            write(1, "unknown: ", 9);
-            write(1, cmd, strlen_(cmd));
-            write(1, "\n", 1);
-        }
+       if (str_eq(cmd, "help")) {
+           print("commands:\n");
+           print("  help     - this\n");
+           print("  clear    - clear screen\n");
+           print("  echo X   - print X\n");
+           print("  uname    - OS name\n");
+           print("  pid      - current pid\n");
+           print("  uptime   - seconds since boot\n");
+           print("  ps       - list tasks\n");
+           print("  hello    - run hello.elf\n");
+           print("  reboot   - reboot system\n");
+           print("  crash    - crash shell (test respawn)\n");
+           print("  exit     - leave shell\n");
+       } else if (str_eq(cmd, "clear")) {
+           clear_();
+       } else if (str_eq(cmd, "exit")) {
+           exit_(0);
+       } else if (str_eq(cmd, "uname")) {
+           print("Kizill_OS x86_64\n");
+       } else if (str_eq(cmd, "pid")) {
+           print("pid: "); print_dec(getpid_()); print("\n");
+       } else if (str_eq(cmd, "uptime")) {
+           long t = uptime_();
+           print("up "); print_dec(t / 100);
+           print("."); print_dec(t % 100);
+           print(" seconds\n");
+       } else if (str_eq(cmd, "ps")) {
+           struct task_info list[8];
+           long n = tasks_(list, 8);
+           print("pid  ppid state  name\n");
+           for (long i = 0; i < n; i++) {
+               print_dec(list[i].pid);  print("    ");
+               print_dec(list[i].parent_pid); print("    ");
+               print(state_name(list[i].state)); print("    ");
+               print(list[i].name);
+               print("\n");
+           }
+       } else if (str_eq(cmd, "crash")) {
+           print("crashing...\n");
+           asm volatile("xor %%rax, %%rax\n\tdiv %%rax" ::: "rax");
+       } else if (str_eq(cmd, "reboot")) {
+           print("rebooting...\n");
+           yield_();
+           reboot_();
+       } else if (str_pref(cmd, "echo ")) {
+           print(cmd + 5); print("\n");
+       } else if (str_eq(cmd, "hello")) {
+           long r = exec_("hello.elf");
+           if (r != 0) print("exec failed\n");
+           else { while (wait_(-1) < 0) yield_(); }
+       } else {
+           print("unknown: "); print(cmd); print("\n");
+       }
     }
 }
 

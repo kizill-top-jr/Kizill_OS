@@ -9,6 +9,7 @@
 #define PTE_USER     (1ULL << 2)
 #define PTE_HUGE     (1ULL << 7)
 #define PTE_NX       (1ULL << 63)
+#define PTE_COW      (1ULL << 9)
 
 // create new PML4 -- copies kernel entries 256..511 from master.
 // returns physical address of PML4, or 0 on failure.

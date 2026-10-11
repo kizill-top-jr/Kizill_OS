@@ -20,6 +20,7 @@ static long sys_call(long n, long a, long b, long c) {
 #define SYS_READ   0
 #define SYS_YIELD  24
 #define SYS_GETPID 39
+#define SYS_FORK   57
 #define SYS_EXIT   60
 #define SYS_WAIT   61
 #define SYS_CLEAR  99
@@ -297,6 +298,7 @@ int main(void) {
            print("  ps       - list tasks\n");
            print("  hello    - run hello.elf\n");
            print("  reboot   - reboot system\n");
+           print("  fork     - fork this shell (test CoW)\n");
            print("  crash    - crash shell (test respawn)\n");
            print("  exit     - leave shell\n");
        } else if (str_eq(cmd, "clear")) {
@@ -323,6 +325,23 @@ int main(void) {
                print(list[i].name);
                print("\n");
            }
+        } else if (str_eq(cmd, "fork")) {
+            long pid = sys_call(SYS_FORK, 0, 0, 0);
+            if (pid == 0) {
+                print("[child] pid=0 hello\n");
+                print("[child] exiting with 42\n");
+                exit_(42);
+            } else if (pid > 0) {
+                print("[parent] forked child pid=");
+                print_dec(pid); print("\n");
+                long code;
+                while ((code = wait_(pid)) < 0) yield_();
+                print("[parent] child exited code=");
+                print_dec(code); print("\n");
+            } else {
+                print("[parent] fork failed\n");
+            }
+        } else if (str_eq(cmd, "crash")) {
        } else if (str_eq(cmd, "crash")) {
            print("crashing...\n");
            asm volatile("xor %%rax, %%rax\n\tdiv %%rax" ::: "rax");

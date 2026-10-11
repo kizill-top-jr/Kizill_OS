@@ -188,3 +188,106 @@ u64 virt_to_phys_in(u64 pml4_phys, u64 virt) {
 u64 virt_to_phys(u64 virt) {
     return virt_to_phys_in(0, virt);
 }
+// helper: allocate a zeroed page table, returns its hhdm pointer and phys
+static u64 *alloc_table(u64 *out_phys) {
+    void *page = pmm_alloc();
+    if (!page) return 0;
+    u64 phys = (u64)page - hhdm();
+    u64 *t = (u64 *)page;
+    for (int i = 0; i < 512; i++) t[i] = 0;
+    *out_phys = phys;
+    return t;
+}
+
+// helper: deep-copy one level of tables (PDPT=3, PD=2, PT=1)
+// leaf pages (level 1) are shared with COW flag, not copied.
+static u64 copy_table_level(u64 src_phys, int level) {
+    u64 dst_phys = 0;
+    u64 *dst = alloc_table(&dst_phys);
+    if (!dst) return 0;
+
+    u64 *src = (u64 *)(hhdm() + src_phys);
+
+    for (int i = 0; i < 512; i++) {
+        u64 e = src[i];
+        if (!(e & PTE_PRESENT)) continue;
+
+        if (level == 1) {
+            // LEAF: share phys page, mark COW, clear WRITE
+            u64 leaf_phys = e & 0x000FFFFFFFFFF000ULL;
+            u64 flags = e & 0xFFF;              // keep lower 12 bits
+            flags &= ~(u64)PTE_WRITE;           // strip write
+            flags |= PTE_COW;                   // set COW
+            u64 nx = e & PTE_NX;                // preserve NX
+
+            dst[i] = leaf_phys | flags | PTE_PRESENT | nx;
+
+            // one more ref to the shared page
+            pmm_ref_inc((void *)(hhdm() + leaf_phys));
+        } else {
+            // INTERMEDIATE: recurse, deep copy
+            u64 child_src = e & 0x000FFFFFFFFFF000ULL;
+            u64 child_dst = copy_table_level(child_src, level - 1);
+            if (!child_dst) return 0;
+
+            // preserve USER flag, drop WRITE on intermediates
+            u64 flags = e & 0xFFF;
+            flags &= ~(u64)PTE_WRITE;
+            dst[i] = child_dst | flags | PTE_PRESENT;
+        }
+    }
+
+    return dst_phys;
+}
+u64 pml4_copy_for_fork(u64 src_pml4) {
+    if (!src_pml4) return 0;
+
+    u64 dst_phys = 0;
+    u64 *dst = alloc_table(&dst_phys);
+    if (!dst) return 0;
+
+    u64 *src = (u64 *)(hhdm() + src_pml4);
+
+    // 1. kernel half: shallow copy
+    for (int i = 256; i < 512; i++) {
+        dst[i] = src[i];
+    }
+
+    // 2. user half: deep copy with CoW on leaves
+    for (int i = 0; i < 256; i++) {
+        u64 e = src[i];
+        if (!(e & PTE_PRESENT)) continue;
+
+        u64 pdpt_src = e & 0x000FFFFFFFFFF000ULL;
+        u64 pdpt_dst = copy_table_level(pdpt_src, 3);
+        if (!pdpt_dst) return 0;
+
+        u64 flags = e & 0xFFF;
+        flags &= ~(u64)PTE_WRITE;
+        dst[i] = pdpt_dst | flags | PTE_PRESENT;
+    }
+
+    return dst_phys;
+}
+u64 *pte_for_va(u64 pml4_phys, u64 va) {
+    u64 *pml4 = pml4_ptr(pml4_phys);
+
+    u64 i4 = (va >> 39) & 0x1FF;
+    u64 i3 = (va >> 30) & 0x1FF;
+    u64 i2 = (va >> 21) & 0x1FF;
+    u64 i1 = (va >> 12) & 0x1FF;
+
+    u64 e4 = pml4[i4]; if (!(e4 & PTE_PRESENT)) return 0;
+    u64 *pdpt = (u64 *)(hhdm() + (e4 & 0x000FFFFFFFFFF000ULL));
+
+    u64 e3 = pdpt[i3]; if (!(e3 & PTE_PRESENT)) return 0;
+    u64 *pd = (u64 *)(hhdm() + (e3 & 0x000FFFFFFFFFF000ULL));
+
+    u64 e2 = pd[i2]; if (!(e2 & PTE_PRESENT)) return 0;
+    if (e2 & PTE_HUGE) return &pd[i2];   // 2MB huge page — the PTE is the PD entry itself
+
+    u64 *pt = (u64 *)(hhdm() + (e2 & 0x000FFFFFFFFFF000ULL));
+    u64 e1 = pt[i1]; if (!(e1 & PTE_PRESENT)) return 0;
+
+    return &pt[i1];
+}

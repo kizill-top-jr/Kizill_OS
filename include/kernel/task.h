@@ -28,9 +28,12 @@ void  scheduler_init(void);
 int   task_create(void (*entry)(void), const char *name);
 int   task_create_user(void (*entry)(void), u64 user_stack,
                        u64 pml4_phys, const char *name);
+int   task_fork(u64 parent_frame_ptr, u64 pml4_phys, u64 parent_pid);
 void  task_set_parent(int idx, u64 parent_pid);
 u64   scheduler_tick(u64 current_rsp);
 u64   task_yield(u64 current_rsp);
+
+u64 task_current_cr3(void);
 
 u64   task_exit_current(int code);
 u64   task_block_current(void);

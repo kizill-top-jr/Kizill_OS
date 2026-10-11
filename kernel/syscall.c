@@ -19,6 +19,7 @@
 #define SYS_UPTIME  101
 #define SYS_TASKS   102
 #define SYS_REBOOT  103
+#define SYS_FORK    57
 
 #define HHDM_BASE 0xFFFF800000000000ULL
 
@@ -181,6 +182,30 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         do_reboot();
         f->rax = 0;
         return (u64)f;
+
+    case SYS_FORK: {
+        // current task's frame is f. src pml4 = current->cr3.
+        extern u64 task_current_cr3(void);
+        extern int task_current_pid(void);
+        u64 parent_cr3 = task_current_cr3();
+        u64 parent_pid = (u64)task_current_pid();
+
+        u64 child_pml4 = pml4_copy_for_fork(parent_cr3);
+        if (!child_pml4) {
+            f->rax = (u64)-1;
+            return (u64)f;
+        }
+
+        int child_pid = task_fork((u64)f, child_pml4, parent_pid);
+        if (child_pid < 0) {
+            pml4_destroy(child_pml4);
+            f->rax = (u64)-1;
+            return (u64)f;
+        }
+
+        f->rax = (u64)child_pid;   // parent sees child's pid
+        return (u64)f;
+    }
 
     case SYS_EXIT:
         return task_exit_current((int)f->rdi);

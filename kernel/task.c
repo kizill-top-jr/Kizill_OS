@@ -281,3 +281,44 @@ int task_alive_count(void) {
     }
     return n;
 }
+int task_fork(u64 parent_frame_ptr, u64 pml4_phys, u64 parent_pid) {
+    int id = alloc_slot();
+    if (id < 0) return -1;
+    if (id >= task_count) task_count = id + 1;
+
+    u64 stack_top = (u64)(stacks[id] + TASK_STACK_SIZE);
+    stack_top &= ~0xFULL;
+
+    // copy parent's syscall frame onto child kernel stack
+    // rax = 0 so child sees fork() -> 0
+    u64 frame_size = 22 * 8;   // sizeof(struct syscall_frame)
+    u64 frame_addr = stack_top - frame_size;
+
+    u8 *src = (u8 *)parent_frame_ptr;
+    u8 *dst = (u8 *)frame_addr;
+    for (u64 i = 0; i < frame_size; i++) dst[i] = src[i];
+
+    // zero child's rax. rax is at offset (14 * 8) in the frame layout:
+    // r15,r14,r13,r12,r11,r10,r9,r8,rbp,rdi,rsi,rdx,rcx,rbx,rax
+    u64 *child_rax = (u64 *)(frame_addr + 14 * 8);
+    *child_rax = 0;
+
+    tasks[id].rsp = frame_addr;
+    tasks[id].pid = next_pid++;
+    tasks[id].parent_pid = parent_pid;
+    tasks[id].state = TASK_READY;
+    tasks[id].exit_code = 0;
+    tasks[id].is_user = 1;
+    tasks[id].cr3 = pml4_phys;
+    tasks[id].waiting_for_pid = -1;
+
+    const char *name = "child";
+    int i = 0;
+    while (name[i] && i < 31) { tasks[id].name[i] = name[i]; i++; }
+    tasks[id].name[i] = 0;
+
+    return (int)tasks[id].pid;
+}
+u64 task_current_cr3(void) {
+    return tasks[current].cr3;
+}

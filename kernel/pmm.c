@@ -1,6 +1,7 @@
 #include <kernel/pmm.h>
 #include <kernel/fb.h>
 #include <kernel/limine.h>
+#include <kernel/serial.h>
 
 extern volatile struct limine_memmap_request   memmap_request;
 extern volatile struct limine_hhdm_request     hhdm_request;
@@ -10,6 +11,7 @@ static u8  *bitmap        = 0;   // 1 bit per page, 1 = used
 static u64  total_pages   = 0;   // covers all physical RAM up to max usable
 static u64  used_pages    = 0;
 static u64  hhdm_offset   = 0;
+static u16  page_refcount[PMM_MAX_PAGES];
 
 // set/clear/test a bit
 static inline void bitmap_set(u64 idx)   { bitmap[idx >> 3] |=  (1 << (idx & 7)); }
@@ -112,15 +114,23 @@ void pmm_init(void) {
     // now mark used: bitmap itself, kernel, framebuffer
     mark_used(bitmap_phys, bitmap_bytes);
 
-    // framebuffer - mark its whole range as used
+    // framebuffer — mark its whole range as used
     extern volatile struct limine_framebuffer_request framebuffer_request;
     if (framebuffer_request.response &&
         framebuffer_request.response->framebuffer_count > 0) {
         struct limine_framebuffer *fb = framebuffer_request.response->framebuffers[0];
         u64 fb_size = fb->pitch * fb->height;
-        // fb->address is virtual in HHDM already, so subtract offset
         u64 fb_phys = (u64)fb->address - hhdm_offset;
         mark_used(fb_phys, fb_size);
+    }
+
+    // sync refcount with bitmap: used=1, free=0
+    if (total_pages > PMM_MAX_PAGES) {
+        serial_puts("pmm: ERROR: RAM too large for static refcount\n");
+        for (;;) asm volatile("hlt");
+    }
+    for (u64 i = 0; i < total_pages; i++) {
+        page_refcount[i] = bitmap_tst(i) ? 1 : 0;
     }
 }
 
@@ -129,6 +139,7 @@ void *pmm_alloc(void) {
         if (!bitmap_tst(i)) {
             bitmap_set(i);
             used_pages++;
+            page_refcount[i] = 1;
             return (void *)(hhdm_offset + i * PAGE_SIZE);
         }
     }
@@ -140,7 +151,12 @@ void pmm_free(void *page) {
     if (v < hhdm_offset) return;   // sanity
     u64 idx = (v - hhdm_offset) / PAGE_SIZE;
     if (idx >= total_pages) return;
-    if (bitmap_tst(idx)) {
+
+    if (page_refcount[idx] > 0) {
+        page_refcount[idx]--;
+    }
+
+    if (page_refcount[idx] == 0 && bitmap_tst(idx)) {
         bitmap_clr(idx);
         used_pages--;
     }
@@ -148,3 +164,14 @@ void pmm_free(void *page) {
 
 u64 pmm_total_pages(void) { return total_pages; }
 u64 pmm_used_pages(void)  { return used_pages; }
+void pmm_ref_inc(void *page) {
+    u64 v = (u64)page;
+    if (v < hhdm_offset) return;
+    u64 idx = (v - hhdm_offset) / PAGE_SIZE;
+    if (idx >= total_pages) return;
+    if (page_refcount[idx] < 0xFFFF) page_refcount[idx]++;
+}
+
+void pmm_ref_dec(void *page) {
+    pmm_free(page);
+}

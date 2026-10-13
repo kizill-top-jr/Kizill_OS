@@ -306,7 +306,9 @@ int main(void) {
        } else if (str_eq(cmd, "exit")) {
            exit_(0);
        } else if (str_eq(cmd, "uname")) {
-           print("Kizill_OS x86_64\n");
+           print("Kizill_OS \n");
+           print("x86_64\n");
+       	   print("shell v0.4\n");
        } else if (str_eq(cmd, "pid")) {
            print("pid: "); print_dec(getpid_()); print("\n");
        } else if (str_eq(cmd, "uptime")) {

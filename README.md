@@ -3,7 +3,7 @@
 Hobby OS from scratch. x86_64, no Linux/BSD base, no Buildroot, no Yocto.
 Just C, NASM, and stubbornness.
 
-## Status: v0.8.1
+## Status: v0.9.0
 
 Works:
 - Boot via Limine into long mode
@@ -58,21 +58,21 @@ qemu-system-x86_64 -cdrom kizill64.iso -m 512M -serial stdio
 
 Each dir has its own README:
 
-- arch/x86_64/ — boot, gdt, idt, pic
-- kernel/ — fb, serial, task, pmm, heap, paging, syscall, tar, elf, keyboard
-- include/kernel/ — headers, mirrors kernel/
-- userspace/ — user programs (sh.c, hello.c)
-- tools/ — make_initramfs.sh
-- limine/ — bootloader binaries (gitignored)
-- docs/ — notes, wip
+- arch/x86_64/ boot, gdt, idt, pic
+- kernel/ fb, serial, task, pmm, heap, paging, syscall, tar, elf, keyboard
+- include/kernel/ headers, mirrors kernel/
+- userspace/ user programs (sh.c, hello.c)
+- tools/ make_initramfs.sh
+- limine/ bootloader binaries (gitignored)
+- docs/ notes, wip
 
 ## Versioning
 
 Semver: MAJOR.MINOR.PATCH.
 
-- v0.8.0 — per-process PML4, CR3 switch
-- v0.8.1 — zombie reap, slot reuse, non-blocking wait
+- v0.8.0 - per-process PML4, CR3 switch
+- v0.8.1 - zombie reap, slot reuse, non-blocking wait
 
 ## License
 
-GPLv3. See LICENSE.
+GPLv3

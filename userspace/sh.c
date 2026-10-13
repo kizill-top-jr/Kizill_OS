@@ -293,6 +293,7 @@ int main(void) {
            print("  clear    - clear screen\n");
            print("  echo X   - print X\n");
            print("  uname    - OS name\n");
+           print("  about    - info about the OS\n");
            print("  pid      - current pid\n");
            print("  uptime   - seconds since boot\n");
            print("  ps       - list tasks\n");
@@ -309,6 +310,11 @@ int main(void) {
            print("Kizill_OS \n");
            print("x86_64\n");
        	   print("shell v0.4\n");
+       } else if (str_eq(cmd, "about")) {
+           print("Kizill_OS \n");
+           print("hobby OS from scratch \n");
+           print("x86_64, C, NASM \n");
+           print("grows where nothing else can) \n");
        } else if (str_eq(cmd, "pid")) {
            print("pid: "); print_dec(getpid_()); print("\n");
        } else if (str_eq(cmd, "uptime")) {

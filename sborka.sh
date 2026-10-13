@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+./tools/make_initramfs.sh
+
 make -f Makefile.64 clean
 make -f Makefile.64
 

@@ -25,9 +25,9 @@ Works:
 - Interactive shell (sh.elf) in ring 3
 - Task lifecycle: zombie, reap, slot reuse (PID cycling)
 - Non-blocking wait, shell polls with yield
+- fork (naive page copy, no CoW yet)
 
 Doesn't work yet:
-- fork (only exec spawns a child)
 - signals, kill
 - real drivers (disk, mouse, network)
 - FS beyond initramfs

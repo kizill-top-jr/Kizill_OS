@@ -174,7 +174,7 @@ int main(void) {
     char buf[8];
 
     clear_();
-    write(1, "Kizill_OS Shell v0.4\n", 21);
+    write(1, "Kizill_OS Shell v0.9 - happy shell)\n", 36);
 
     while (1) {
         len = 0;

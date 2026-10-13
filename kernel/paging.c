@@ -213,17 +213,22 @@ static u64 copy_table_level(u64 src_phys, int level) {
         if (!(e & PTE_PRESENT)) continue;
 
         if (level == 1) {
-            // LEAF: share phys page, mark COW, clear WRITE
-            u64 leaf_phys = e & 0x000FFFFFFFFFF000ULL;
-            u64 flags = e & 0xFFF;              // keep lower 12 bits
-            flags &= ~(u64)PTE_WRITE;           // strip write
-            flags |= PTE_COW;                   // set COW
-            u64 nx = e & PTE_NX;                // preserve NX
+            // LEAF: real copy, no COW
+            u64 old_phys = e & 0x000FFFFFFFFFF000ULL;
+            void *new_page = pmm_alloc();
+            if (!new_page) return 0;
+            u64 new_phys = (u64)new_page - hhdm();
 
-            dst[i] = leaf_phys | flags | PTE_PRESENT | nx;
+            u8 *dst_page = (u8 *)new_page;
+            u8 *src_page = (u8 *)(old_phys + hhdm());
+            for (u64 j = 0; j < 4096; j++) dst_page[j] = src_page[j];
 
-            // one more ref to the shared page
-            pmm_ref_inc((void *)(hhdm() + leaf_phys));
+            // keep original flags (W if it was W), drop COW, keep NX
+            u64 flags = e & 0xFFF;
+            flags &= ~(u64)PTE_COW;
+            u64 nx = e & PTE_NX;
+
+            dst[i] = new_phys | flags | PTE_PRESENT | nx;
         } else {
             // INTERMEDIATE: recurse, deep copy
             u64 child_src = e & 0x000FFFFFFFFFF000ULL;
@@ -290,4 +295,31 @@ u64 *pte_for_va(u64 pml4_phys, u64 va) {
     u64 e1 = pt[i1]; if (!(e1 & PTE_PRESENT)) return 0;
 
     return &pt[i1];
+}
+int validate_user_ptr(u64 pml4_phys, u64 ptr, u64 len, int write) {
+    // reject empty or kernel-half addresses
+    if (len == 0) return 0;
+
+    // user half: below 0x0000800000000000
+    const u64 USER_MAX = 0x0000800000000000ULL;
+
+    if (ptr >= USER_MAX) return -1;
+
+    // overflow check on ptr + len
+    if (ptr + len < ptr) return -1;
+    if (ptr + len > USER_MAX) return -1;
+
+    // walk every page in the range
+    u64 start = ptr & ~0xFFFULL;
+    u64 end   = (ptr + len + 0xFFF) & ~0xFFFULL;
+
+    for (u64 va = start; va < end; va += 0x1000) {
+        u64 *pte = pte_for_va(pml4_phys, va);
+        if (!pte) return -1;
+        if (!(*pte & PTE_PRESENT)) return -1;
+        if (!(*pte & PTE_USER))    return -1;
+        if (write && !(*pte & PTE_WRITE)) return -1;
+    }
+
+    return 0;
 }

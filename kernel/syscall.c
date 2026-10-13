@@ -1,3 +1,5 @@
+#include <kernel/task.h>
+#include <kernel/serial.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
 #include <kernel/task.h>
@@ -96,6 +98,12 @@ u64 syscall_dispatch(struct syscall_frame *f) {
     case SYS_WRITE: {
         char *buf = (char *)f->rsi;
         u64 len = f->rdx;
+
+        if (validate_user_ptr(task_current_cr3(), (u64)buf, len, 0) != 0) {
+            f->rax = (u64)-1;   // -EFAULT
+            return (u64)f;
+        }
+
         for (u64 i = 0; i < len; i++) {
             char c = buf[i];
             if (c == 0) break;
@@ -111,6 +119,11 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         char *ubuf = (char *)f->rsi;
         u64 len = f->rdx;
         if (len == 0) { f->rax = 0; return (u64)f; }
+
+        if (validate_user_ptr(task_current_cr3(), (u64)ubuf, len, 1) != 0) {
+            f->rax = (u64)-1;
+            return (u64)f;
+        }
 
         if (!keyboard_has_data()) { f->rax = 0; return (u64)f; }
 
@@ -162,10 +175,16 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         return (u64)f;
 
     case SYS_TASKS: {
-        // rdi = buf, rsi = max_count
         task_info_t *ubuf = (task_info_t *)f->rdi;
         int maxn = (int)f->rsi;
         if (maxn <= 0) { f->rax = 0; return (u64)f; }
+        if (maxn > 16) maxn = 16;
+
+        u64 bytes = (u64)maxn * sizeof(task_info_t);
+        if (validate_user_ptr(task_current_cr3(), (u64)ubuf, bytes, 1) != 0) {
+            f->rax = (u64)-1;
+            return (u64)f;
+        }
 
         int written = 0;
         for (int i = 0; i < 8 && written < maxn; i++) {
@@ -184,13 +203,19 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         return (u64)f;
 
     case SYS_FORK: {
-        // current task's frame is f. src pml4 = current->cr3.
         extern u64 task_current_cr3(void);
         extern int task_current_pid(void);
+
         u64 parent_cr3 = task_current_cr3();
         u64 parent_pid = (u64)task_current_pid();
-
         u64 child_pml4 = pml4_copy_for_fork(parent_cr3);
+
+        serial_puts("fork: parent_cr3=");
+        serial_hex(parent_cr3);
+        serial_puts(" child_pml4=");
+        serial_hex(child_pml4);
+        serial_puts("\n");
+
         if (!child_pml4) {
             f->rax = (u64)-1;
             return (u64)f;

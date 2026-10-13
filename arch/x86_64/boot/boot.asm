@@ -16,7 +16,8 @@ _start:
     mov cr0, rax
 
     mov rax, cr4
-    or  ax, (3 << 9)      ; set CR4.OSFXSR (bit 9) + CR4.OSXMMEXCPT (bit 10)
+    or  ax, (3 << 9)      ; set CR4.OSFXSR + CR4.OSXMMEXCPT
+    and rax, ~(1 << 17)   ; CLEAR CR4.PCIDE (bit 17) -- we don't use PCID
     mov cr4, rax
 
     ; zero .bss — Limine doesn't guarantee it

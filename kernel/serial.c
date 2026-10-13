@@ -41,3 +41,16 @@ void serial_hex(u64 v) {
     for (int i = 60; i >= 0; i -= 4)
         serial_putc(h[(v >> i) & 0xF]);
 }
+void serial_dec(u64 v) {
+    if (v == 0) {
+        serial_putc('0');
+        return;
+    }
+    char buf[24];
+    int n = 0;
+    while (v) {
+        buf[n++] = '0' + (v % 10);
+        v /= 10;
+    }
+    while (n--) serial_putc(buf[n]);
+}

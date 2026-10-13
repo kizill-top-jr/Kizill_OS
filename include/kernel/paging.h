@@ -26,6 +26,12 @@ u64 pml4_copy_for_fork(u64 src_pml4);
 
 u64 *pte_for_va(u64 pml4_phys, u64 va);
 
+// validate that [ptr, ptr+len) is fully mapped as user memory
+// write=0: read-only check (PTE_USER required)
+// write=1: also require PTE_WRITE
+// returns 0 on success, -1 on failure
+int validate_user_ptr(u64 pml4_phys, u64 ptr, u64 len, int write);
+
 // map one page into a specific PML4.
 // pml4_phys == 0 -> use current CR3
 int map_page_in(u64 pml4_phys, u64 virt, u64 phys, u64 flags);

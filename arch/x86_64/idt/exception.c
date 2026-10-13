@@ -1,3 +1,4 @@
+#include <kernel/serial.h>
 #include <kernel/fb.h>
 #include <kernel/types.h>
 #include <kernel/exception.h>
@@ -46,6 +47,17 @@ static void kernel_panic(struct exception_frame *f) {
 }
 
 u64 exception_dispatch(struct exception_frame *f) {
+    // DEBUG: log CR4 once
+    static int cr4_logged = 0;
+    if (!cr4_logged) {
+        u64 cr4;
+        asm volatile("mov %%cr4, %0" : "=r"(cr4));
+        serial_puts("CR4=");
+        serial_hex(cr4);
+        serial_puts("\n");
+        cr4_logged = 1;
+    }
+    asm volatile("cli" ::: "memory");
     u64 vec = f->vector;
 
     // rpl bits of CS: 0 = kernel, 3 = user
@@ -65,12 +77,50 @@ u64 exception_dispatch(struct exception_frame *f) {
         int is_write   = (f->errcode & 2) != 0;
         int is_present = (f->errcode & 1) != 0;
 
+        u64 cr2_dbg;
+        asm volatile("mov %%cr2, %0" : "=r"(cr2_dbg));
+
+        extern int task_current_pid(void);
+        serial_puts("PF user: pid=");
+        serial_dec((u64)task_current_pid());
+        serial_puts(" err=");
+        serial_hex(f->errcode);
+        serial_puts(" rip=");
+        serial_hex(f->rip);
+        serial_puts(" cr2=");
+        serial_hex(cr2_dbg);
+        serial_puts(" w=");
+        serial_dec((u64)is_write);
+        serial_puts(" p=");
+        serial_dec((u64)is_present);
+        serial_puts("\n");
+
         if (is_write && is_present) {
             u64 cr2;
             asm volatile("mov %%cr2, %0" : "=r"(cr2));
 
             u64 cur_pml4 = task_current_cr3();
+            u64 cr3_actual;
+            asm volatile("mov %%cr3, %0" : "=r"(cr3_actual));
+            cr3_actual &= 0x000FFFFFFFFFF000ULL;
+            serial_puts("CoW: cur_pml4=");
+            serial_hex(cur_pml4);
+            serial_puts(" cr3_actual=");
+            serial_hex(cr3_actual);
+            serial_puts("\n");
             u64 *pte = pte_for_va(cur_pml4, cr2);
+
+            serial_puts("CoW: pml4=");
+            serial_hex(cur_pml4);
+            serial_puts(" pte=");
+            serial_hex((u64)pte);
+            if (pte) {
+                serial_puts(" *pte=");
+                serial_hex(*pte);
+                serial_puts(" cow=");
+                serial_dec((*pte & PTE_COW) ? 1 : 0);
+            }
+            serial_puts("\n");
 
             if (pte && (*pte & PTE_COW)) {
                 u64 old_phys = *pte & 0x000FFFFFFFFFF000ULL;
@@ -88,7 +138,14 @@ u64 exception_dispatch(struct exception_frame *f) {
                     *pte = new_phys | PTE_PRESENT | PTE_WRITE | PTE_USER | nx;
 
                     pmm_ref_dec((void *)(old_phys + hhdm));
-                    asm volatile("invlpg (%0)" : : "r"(cr2) : "memory");
+
+                    // NUCLEAR TLB FLUSH: bounce through master PML4
+                    extern u64 pml4_master(void);
+                    u64 master_cr3 = pml4_master();
+                    asm volatile("mov %0, %%cr3" : : "r"(master_cr3) : "memory");
+                    asm volatile("mov %0, %%cr3" : : "r"(cur_pml4)   : "memory");
+
+                    serial_puts("CoW: flushed, returning\n");
 
                     return (u64)f;
                 }

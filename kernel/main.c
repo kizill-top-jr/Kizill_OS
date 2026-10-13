@@ -44,44 +44,6 @@ volatile u64 limine_requests_end_marker[4] = LIMINE_REQUESTS_END_MARKER;
 
 // ---- helpers ----
 
-static void fb_print_at(u64 x, u64 y, char c, u32 color) {
-    fb_draw_char(x * 8, y * 8, c, color, FB_BLACK);
-}
-
-static void fb_print_num_at(u64 x, u64 y, u64 v, u32 color) {
-    char buf[24];
-    int n = 0;
-    if (v == 0) buf[n++] = '0';
-    while (v > 0) { buf[n++] = '0' + (v % 10); v /= 10; }
-    for (int i = n - 1; i >= 0; i--) fb_print_at(x++, y, buf[i], color);
-}
-
-// ---- test tasks (preemption proof) ----
-
-static void task_a(void) {
-    u64 counter = 0;
-    while (1) {
-        counter++;
-        if ((counter % 100000) == 0) {
-            fb_print_at(70, 22, 'A', FB_RED);
-            fb_print_at(72, 22, ':', FB_RED);
-            fb_print_num_at(74, 22, counter, FB_RED);
-        }
-    }
-}
-
-static void task_b(void) {
-    u64 counter = 0;
-    while (1) {
-        counter++;
-        if ((counter % 100000) == 0) {
-            fb_print_at(70, 23, 'B', FB_GREEN);
-            fb_print_at(72, 23, ':', FB_GREEN);
-            fb_print_num_at(74, 23, counter, FB_GREEN);
-        }
-    }
-}
-
 static int spawn_shell(void) {
     if (!module_request.response || module_request.response->module_count == 0)
         return -1;
@@ -193,8 +155,6 @@ void kmain(void) {
     printk("\n\n");
 
     scheduler_init();
-    task_create(task_a, "task_a");
-    task_create(task_b, "task_b");
 
    serial_puts("=== boot ok ===\n");
    spawn_shell();

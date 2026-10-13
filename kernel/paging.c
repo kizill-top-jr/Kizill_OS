@@ -61,13 +61,11 @@ static void free_table_level(u64 table_phys, int level) {
         if (!(e & PTE_PRESENT)) continue;
 
         if (level == 1) {
-            // leaf
             free_user_page(e);
         } else if (level == 2) {
-            // could be 2MB huge page
             if (e & PTE_HUGE) {
+                // 2MB page, free all 512 small pages inside
                 u64 phys = e & 0x000FFFFFFFE00000ULL;
-                // huge page is 2MB = 512 small pages
                 for (int j = 0; j < 512; j++) {
                     pmm_free((void *)(hhdm() + phys + j * 0x1000));
                 }

@@ -103,7 +103,7 @@ void kmain(void) {
     fb_init(fb);
     fb_clear(FB_BLACK);
 
-    printk_color("Kizill_OS v0.6 x86_64\n", FB_GREEN);
+    printk_color("Kizill_OS v0.9 x86_64\n", FB_GREEN);
     printk("fb:  "); printk_dec(fb->width); printk("x");
     printk_dec(fb->height); printk(" "); printk_dec(fb->bpp); printk("bpp\n\n");
 

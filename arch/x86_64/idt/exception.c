@@ -78,6 +78,8 @@ u64 exception_dispatch(struct exception_frame *f) {
         asm volatile("mov %%cr2, %0" : "=r"(cr2));
         serial_puts("PF user: pid=");
         serial_dec((u64)task_current_pid());
+        serial_puts(" err=");
+        serial_hex(f->errcode);
         serial_puts(" rip=");
         serial_hex(f->rip);
         serial_puts(" cr2=");

@@ -221,9 +221,8 @@ static u64 copy_table_level(u64 src_phys, int level) {
             u8 *src_page = (u8 *)(old_phys + hhdm());
             for (u64 j = 0; j < 4096; j++) dst_page[j] = src_page[j];
 
-            // keep original flags (W if it was W), drop COW, keep NX
+            // naive copy: keep all flags as they were in source
             u64 flags = e & 0xFFF;
-            flags &= ~(u64)PTE_COW;
             u64 nx = e & PTE_NX;
 
             dst[i] = new_phys | flags | PTE_PRESENT | nx;
@@ -235,7 +234,6 @@ static u64 copy_table_level(u64 src_phys, int level) {
 
             // preserve USER flag, drop WRITE on intermediates
             u64 flags = e & 0xFFF;
-            flags &= ~(u64)PTE_WRITE;
             dst[i] = child_dst | flags | PTE_PRESENT;
         }
     }
@@ -266,7 +264,6 @@ u64 pml4_copy_for_fork(u64 src_pml4) {
         if (!pdpt_dst) return 0;
 
         u64 flags = e & 0xFFF;
-        flags &= ~(u64)PTE_WRITE;
         dst[i] = pdpt_dst | flags | PTE_PRESENT;
     }
 

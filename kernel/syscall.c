@@ -58,10 +58,17 @@ static int do_exec(const char *name) {
     const u8 *tar = (const u8 *)mod->address;
     u64 tar_size = mod->size;
 
+    //validate the whole 64-byte name buffer once
+    u64 cr3 = task_current_cr3();
+    if (validate_user_ptr(cr3, (u64)name, 64, 0) !=0) return -1;
+
     char fname[64];
-    int i = 0;
-    while (name[i] && i < 63) { fname[i] = name[i]; i++; }
-    fname[i] = 0;
+    for (int i = 0; i < 64; i++) {
+        fname[i] = name[i];
+        if (fname[i] == 0) break;
+    }
+    fname[63] = 0;
+    if (fname[0] == 0) return -1;
 
     const tar_entry_t *e = tar_find(tar, tar_size, fname);
     if (!e) return -1;

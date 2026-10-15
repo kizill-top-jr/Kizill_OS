@@ -5,4 +5,6 @@
 
 void idt_init(void);
 
+void pit_init(void);
+
 #endif

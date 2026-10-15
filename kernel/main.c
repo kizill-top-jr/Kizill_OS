@@ -170,6 +170,7 @@ void kmain(void) {
    printk("\n");
    printk_color("unmask timer + sti\n", FB_YELLOW);
 
+   pit_init();
    pic_unmask_timer();
    asm volatile("sti");
 

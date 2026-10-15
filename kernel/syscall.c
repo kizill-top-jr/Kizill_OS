@@ -83,16 +83,41 @@ static int do_exec(const char *name) {
     }
 
     void *s1 = pmm_alloc();
-    void *s2 = pmm_alloc();
-    if (!s1 || !s2) return -1;
+    if (!s1) {
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
 
-    map_page_in(pml4_phys, 0x7FF000, (u64)s1 - HHDM_BASE,
-                PTE_PRESENT | PTE_WRITE | PTE_USER);
-    map_page_in(pml4_phys, 0x800000, (u64)s2 - HHDM_BASE,
-                PTE_PRESENT | PTE_WRITE | PTE_USER);
+    void *s2 = pmm_alloc();
+    if (!s2) {
+        pmm_free(s1);
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
+
+    if (map_page_in(pml4_phys, 0x7FF000, (u64)s1 - HHDM_BASE,
+                    PTE_PRESENT | PTE_WRITE | PTE_USER) != 0) {
+        pmm_free(s2);
+        pmm_free(s1);
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
+
+    if (map_page_in(pml4_phys, 0x800000, (u64)s2 - HHDM_BASE,
+                    PTE_PRESENT | PTE_WRITE | PTE_USER) != 0) {
+        pmm_free(s2);
+        pmm_free(s1);
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
 
     int idx = task_create_user((void (*)(void))entry, 0x800000, pml4_phys, fname);
-    if (idx < 0) return -1;
+    if (idx < 0) {
+        pmm_free(s2);
+        pmm_free(s1);
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
 
     extern void task_set_parent(int idx, u64 parent_pid);
     task_set_parent(idx, (u64)task_current_pid());

@@ -10,6 +10,7 @@ extern volatile struct limine_framebuffer_request framebuffer_request;
 static u8  *bitmap        = 0;   // 1 bit per page, 1 = used
 static u64  total_pages   = 0;   // covers all physical RAM up to max usable
 static u64  used_pages    = 0;
+static u64 last_alloc_hint = 0;
 static u64  hhdm_offset   = 0;
 static u16  page_refcount[PMM_MAX_PAGES];
 
@@ -135,15 +136,29 @@ void pmm_init(void) {
 }
 
 void *pmm_alloc(void) {
-    for (u64 i = 0; i < total_pages; i++) {
+    u64 start = last_alloc_hint;
+
+    for (u64 i = start; i < total_pages; i++) {
         if (!bitmap_tst(i)) {
             bitmap_set(i);
             used_pages++;
             page_refcount[i] = 1;
+            last_alloc_hint = i + 1;
             return (void *)(hhdm_offset + i * PAGE_SIZE);
         }
     }
-    return 0;   // out of memory
+
+    for (u64 i = 0; i < start; i++) {
+        if (!bitmap_tst(i)) {
+            bitmap_set(i);
+            used_pages++;
+            page_refcount[i] = 1;
+            last_alloc_hint = i + 1;
+            return (void *)(hhdm_offset + i * PAGE_SIZE);
+        }
+    }
+
+    return 0;
 }
 
 void pmm_free(void *page) {

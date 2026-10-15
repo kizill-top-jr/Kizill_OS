@@ -287,7 +287,7 @@ u64 *pte_for_va(u64 pml4_phys, u64 va) {
     u64 *pd = (u64 *)(hhdm() + (e3 & 0x000FFFFFFFFFF000ULL));
 
     u64 e2 = pd[i2]; if (!(e2 & PTE_PRESENT)) return 0;
-    if (e2 & PTE_HUGE) return &pd[i2];   // 2MB huge page — the PTE is the PD entry itself
+    if (e2 & PTE_HUGE) return &pd[i2];   // 2MB huge page the PTE is the PD entry itself
 
     u64 *pt = (u64 *)(hhdm() + (e2 & 0x000FFFFFFFFFF000ULL));
     u64 e1 = pt[i1]; if (!(e1 & PTE_PRESENT)) return 0;
@@ -320,4 +320,9 @@ int validate_user_ptr(u64 pml4_phys, u64 ptr, u64 len, int write) {
     }
 
     return 0;
+}
+u64 hhdm_offset(void) {
+    return hhdm_request.response
+        ? hhdm_request.response->offset
+        : HHDM_BASE;
 }

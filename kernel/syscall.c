@@ -23,8 +23,6 @@
 #define SYS_REBOOT  103
 #define SYS_FORK    57
 
-#define HHDM_BASE 0xFFFF800000000000ULL
-
 extern volatile struct limine_module_request module_request;
 extern volatile u64 g_ticks;
 
@@ -95,7 +93,7 @@ static int do_exec(const char *name) {
         return -1;
     }
 
-    if (map_page_in(pml4_phys, 0x7FF000, (u64)s1 - HHDM_BASE,
+    if (map_page_in(pml4_phys, 0x7FF000, (u64)s1 - hhdm_offset(),
                     PTE_PRESENT | PTE_WRITE | PTE_USER) != 0) {
         pmm_free(s2);
         pmm_free(s1);
@@ -103,7 +101,7 @@ static int do_exec(const char *name) {
         return -1;
     }
 
-    if (map_page_in(pml4_phys, 0x800000, (u64)s2 - HHDM_BASE,
+    if (map_page_in(pml4_phys, 0x800000, (u64)s2 - hhdm_offset(),
                     PTE_PRESENT | PTE_WRITE | PTE_USER) != 0) {
         pmm_free(s2);
         pmm_free(s1);

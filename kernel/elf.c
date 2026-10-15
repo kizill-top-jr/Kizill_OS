@@ -3,9 +3,6 @@
 #include <kernel/paging.h>
 #include <kernel/pmm.h>
 
-// HHDM offset -- Limine maps all physical memory at this base
-#define HHDM_BASE 0xFFFF800000000000ULL
-
 int elf_check(const u8 *data, u64 size) {
     if (size < sizeof(struct elf64_ehdr)) return -1;
 
@@ -97,7 +94,7 @@ u64 elf_load_in(u64 pml4_phys, const u8 *data, u64 size) {
             void *page = pmm_alloc();
             if (!page) return 0;
 
-            u64 phys = (u64)page - HHDM_BASE;
+            u64 phys = (u64)page - hhdm_offset();
             u64 va = vaddr_start + p * 0x1000;
             phys_addrs[p] = (u64)page;   // HHDM virtual addr
 

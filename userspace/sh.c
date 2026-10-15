@@ -289,19 +289,27 @@ int main(void) {
 
        if (str_eq(cmd, "help")) {
            print("commands:\n");
-           print("  help     - this\n");
+ 	   print("\n");
+	   print("FILES:\n");
            print("  clear    - clear screen\n");
            print("  echo X   - print X\n");
+           print("\n");
+           print("system:\n");
            print("  uname    - OS name\n");
            print("  about    - info about the OS\n");
            print("  pid      - current pid\n");
-           print("  uptime   - seconds since boot\n");
            print("  ps       - list tasks\n");
-           print("  hello    - run hello.elf\n");
+           print("  uptime   - seconds since boot\n");
            print("  reboot   - reboot system\n");
+           print("\n");
+           print("process:\n");
+           print("  hello    - run hello.elf\n");
            print("  fork     - fork this shell (test CoW)\n");
            print("  crash    - crash shell (test respawn)\n");
            print("  exit     - leave shell\n");
+           print("\n");
+           print("misc:\n");
+           print("  help     - this\n");
        } else if (str_eq(cmd, "clear")) {
            clear_();
        } else if (str_eq(cmd, "exit")) {

@@ -11,5 +11,7 @@ Interrupts: table, handlers, drivers.
     restores next task's rsp, iretq.
   - isr_stub_syscall saves GPRs, calls syscall_dispatch(rsp),
     mov rsp, rax (may be a different task), iretq.
-- exception.c — panic screen (red, KERNEL PANIC:), CR2 for #PF.
-- timer.c — PIT init, 100 Hz, g_ticks counter.
+- exception.c - exception_dispatch. #DF always panics. For other
+  vectors, checks CS.RPL: if from ring 3, kills the task (exit code
+  128 + vec). If from ring 0, panics. CR2 logged for #PF.
+- timer.c - g_ticks counter. PIT itself is set up in idt_init.

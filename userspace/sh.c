@@ -318,10 +318,21 @@ int main(void) {
        } else if (str_eq(cmd, "pid")) {
            print("pid: "); print_dec(getpid_()); print("\n");
        } else if (str_eq(cmd, "uptime")) {
-           long t = uptime_();
-           print("up "); print_dec(t / 100);
-           print("."); print_dec(t % 100);
-           print(" seconds\n");
+           long total = uptime_() / 100;
+      	   long sec = total % 60;
+	   long min = (total / 60) % 60;
+	   long hr = total / 3600;
+           print("up ");
+	   if (hr > 0) {
+	       print_dec(hr);
+	       print("h ");
+           }
+	   if (hr > 0 || min > 0) {
+               print_dec(min);
+	       print("m ");
+           }
+	   print_dec(sec);
+           print("s\n");
        } else if (str_eq(cmd, "ps")) {
            struct task_info list[8];
            long n = tasks_(list, 8);

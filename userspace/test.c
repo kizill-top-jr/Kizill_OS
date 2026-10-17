@@ -71,6 +71,48 @@ int main(void) {
     } else {
         print("[test 3] fork FAILED\n");
     }
+    // test 4: getpid
+    long my_pid = sys_call(39, 0, 0, 0); // SYS_GETPID
+    if (my_pid > 0) {
+        print("[test 4] getpid: OK (pid=");
+        print_num(my_pid);
+        print(")\n");
+    } else {
+        print("[test 4] getpid FAILED\n");
+    }
+
+    // test 5: uptime
+    long up = sys_call(101, 0, 0, 0); // SYS_UPTIME
+    if (up > 0) {
+        print("[test 5] uptime: OK\n");
+    } else {
+        print("[test 5] uptime FAILED (returns 0)\n");
+    }
+
+    // test 6: tasks
+    struct {
+        unsigned long pid;
+        unsigned long ppid;
+        int state;
+        char name[32];
+    } tasks[8];
+
+    long n = sys_call(102, (long)tasks, 8, 0); // SYS_TASKS
+    if (n > 0) {
+        print("[test 6] tasks list: OK (found ");
+        print_num(n);
+        print(" tasks)\n");
+    } else {
+        print("[test 6] tasks list FAILED\n");
+    }
+
+    // test 7: invalid exec pointer
+    long r_exec = sys_call(100, 0xFFFF800000000000, 0, 0); // SYS_EXEC
+    if (r_exec < 0) {
+        print("[test 7] invalid exec rejected: OK\n");
+    } else {
+        print("[test 7] FAIL: invalid exec was allowed!\n");
+    }
 
     print("=== all tests passed ===\n");
     return 0;

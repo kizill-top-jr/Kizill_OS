@@ -14,6 +14,7 @@ OBJS = arch/x86_64/boot/boot.o \
        arch/x86_64/idt/timer.o \
        kernel/main.o \
        kernel/fb.o \
+       kernel/ktest.o \
        kernel/serial.o \
        kernel/task.o \
        kernel/pmm.o \

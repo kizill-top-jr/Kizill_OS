@@ -1,3 +1,4 @@
+#include <kernel/ktest.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
 #include <kernel/gdt.h>
@@ -148,6 +149,16 @@ void kmain(void) {
         printk_color("pml4: create failed\n", FB_RED);
     }
     heap_init();
+    ktest_run();
+
+    // pause so we can read test results
+    printk_color("\n[ PAUSED ] Press any key to continue...\n", FB_YELLOW);
+
+    u8 sc = 0xFF;
+    while (1) {
+        asm volatile("inb $0x60, %0" : "=a"(sc));
+        if (sc < 0x80) break; 
+    }
 
     printk("hhdm: "); printk_hex(hhdm); printk("\n");
     printk("pmm:  total="); printk_dec(pmm_total_pages());

@@ -161,7 +161,7 @@ void kmain(void) {
     ktest_run();
 
     // debug pause (enable to read ktest results before shell)
-//#if 0
+#if 0
     printk_color("\n[ PAUSED ] Press any key to continue...\n", FB_YELLOW);
 
     u8 sc = 0xFF;
@@ -169,7 +169,7 @@ void kmain(void) {
         asm volatile("inb $0x60, %0" : "=a"(sc));
         if (sc < 0x80) break;
     }
-//#endif
+#endif
 
    serial_puts("=== boot ok ===\n");
    spawn_shell();

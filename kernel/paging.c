@@ -117,6 +117,7 @@ static u64 *walk_ptr(u64 *table, u64 idx, int create, u64 flags) {
     u64 entry = table[idx];
 
     if (entry & PTE_PRESENT) {
+        if (entry & PTE_HUGE) return 0; // unsupported huge page
         return (u64 *)(hhdm() + (entry & 0x000FFFFFFFFFF000ULL));
     }
 
@@ -235,6 +236,9 @@ static u64 copy_table_level(u64 src_phys, int level) {
 
             dst[i] = new_phys | flags | PTE_PRESENT | nx;
         } else {
+            // unsupported huge page, abort fork
+            if (level == 2 && (e & PTE_HUGE)) return 0;
+
             // INTERMEDIATE: recurse, deep copy
             u64 child_src = e & 0x000FFFFFFFFFF000ULL;
             u64 child_dst = copy_table_level(child_src, level - 1);

@@ -1,3 +1,4 @@
+#include <kernel/tar.h>
 #include <kernel/elf.h>
 #include <kernel/paging.h>
 #include <kernel/types.h>
@@ -121,6 +122,25 @@ void ktest_run(void) {
     bad_elf2[5] = 1; // little endian
     elf_res = elf_check(bad_elf2, 64);
     check(elf_res != 0, "elf_check rejects missing phdrs");
+
+    // test 13: tar_find on empty buffer
+    u8 empty_tar[512];
+    for (int i = 0; i < 512; i++) empty_tar[i] = 0;
+    const tar_entry_t *e1 = tar_find(empty_tar, 512, "test.elf");
+    check(e1 == 0, "tar_find returns NULL on empty buffer");
+
+    // test 14: tar_find on garbage data
+    u8 garbage_tar[512];
+    for (int i = 0; i < 512; i++) garbage_tar[i] = 0xAA;
+    const tar_entry_t *e2 = tar_find(garbage_tar, 512, "test.elf");
+    check(e2 == 0, "tar_find returns NULL on garbage");
+
+    // test 15: tar_find on truncated header
+    // (buffer size is 100, but header requires 512)
+    u8 small_tar[100];
+    for (int i = 0; i < 100; i++) small_tar[i] = 0;
+    const tar_entry_t *e3 = tar_find(small_tar, 100, "test.elf");
+    check(e3 == 0, "tar_find returns NULL on truncated buffer");
 
     printk_color("=== tests done: ", FB_YELLOW);
     printk_dec(tests_passed);

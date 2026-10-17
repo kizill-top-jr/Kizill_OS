@@ -143,16 +143,32 @@ int map_page_in(u64 pml4_phys, u64 virt, u64 phys, u64 flags) {
     u64 i2 = (virt >> 21) & 0x1FF;
     u64 i1 = (virt >> 12) & 0x1FF;
 
-    u64 *pdpt = walk_ptr(pml4, i4, 1, flags); if (!pdpt) return -1;
-    u64 *pd   = walk_ptr(pdpt, i3, 1, flags); if (!pd)   return -1;
-    u64 *pt   = walk_ptr(pd,   i2, 1, flags); if (!pt)   return -1;
+    int created_pdpt = 0;
+    int created_pd = 0;
+
+    if (!(pml4[i4] & PTE_PRESENT)) created_pdpt = 1;
+    u64 *pdpt = walk_ptr(pml4, i4, 1, flags);
+    if (!pdpt) return -1;
+
+    if (!(pdpt[i3] & PTE_PRESENT)) created_pd = 1;
+    u64 *pd = walk_ptr(pdpt, i3, 1, flags);
+    if (!pd) {
+        if (created_pdpt) pmm_free(pdpt);
+        return -1;
+    }
+
+    u64 *pt = walk_ptr(pd, i2, 1, flags);
+    if (!pt) {
+        if (created_pd) pmm_free(pd);
+        if (created_pdpt) pmm_free(pdpt);
+        return -1;
+    }
 
     pt[i1] = (phys & 0x000FFFFFFFFFF000ULL)
            | (flags & 0xFFF)
            | PTE_PRESENT
            | (flags & PTE_NX);
 
-    // flush TLB if we're mapping into the currently active PML4
     u64 cur_cr3;
     asm volatile("mov %%cr3, %0" : "=r"(cur_cr3));
     cur_cr3 &= 0x000FFFFFFFFFF000ULL;

@@ -86,6 +86,9 @@ static void free_table_level(u64 table_phys, int level) {
 void pml4_destroy(u64 pml4_phys) {
     if (!pml4_phys) return;
 
+    // never destroy master pml4
+    if (pml4_phys == pml4_master()) return;
+
     // safety: don't destroy the PML4 currently loaded
     u64 cur;
     asm volatile("mov %%cr3, %0" : "=r"(cur));

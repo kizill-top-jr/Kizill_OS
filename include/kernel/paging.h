@@ -22,6 +22,8 @@ void pml4_destroy(u64 pml4_phys);
 // get physical address of master PML4 (current CR3)
 u64 pml4_master(void);
 
+void paging_init(void);
+
 u64 hhdm_offset(void);
 
 u64 pml4_copy_for_fork(u64 src_pml4);

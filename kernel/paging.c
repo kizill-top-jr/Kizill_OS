@@ -12,12 +12,13 @@ static inline u64 hhdm(void) {
 
 static u64 g_master_pml4 = 0;
 
+void paging_init(void) {
+    u64 cr3;
+    asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    g_master_pml4 = cr3 & 0x000FFFFFFFFFF000ULL;
+}
+
 u64 pml4_master(void) {
-    if (g_master_pml4 == 0) {
-        u64 cr3;
-        asm volatile("mov %%cr3, %0" : "=r"(cr3));
-        g_master_pml4 = cr3 & 0x000FFFFFFFFFF000ULL;
-    }
     return g_master_pml4;
 }
 

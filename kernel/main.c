@@ -111,6 +111,7 @@ void kmain(void) {
     idt_init();
     keyboard_init();
     pmm_init();
+    paging_init();
 
     u64 hhdm = hhdm_request.response->offset;
 

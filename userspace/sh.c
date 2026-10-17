@@ -1,4 +1,4 @@
-// Kizill_OS shell -- ring 3
+// Kizill_OS shell - ring 3
 
 static long sys_call(long n, long a, long b, long c) {
     long ret;
@@ -309,6 +309,7 @@ int main(void) {
            print("  exit     - leave shell\n");
            print("\n");
            print("misc:\n");
+           print("  test     - run test.elf\n");
            print("  help     - this\n");
        } else if (str_eq(cmd, "clear")) {
            clear_();
@@ -382,6 +383,10 @@ int main(void) {
            long r = exec_("hello.elf");
            if (r != 0) print("exec failed\n");
            else { while (wait_(-1) < 0) yield_(); }
+        } else if (str_eq(cmd, "test")) {
+            long r = exec_("test.elf");
+            if (r != 0) print("exec failed\n");
+            else { while (wait_(-1) < 0) yield_(); }
        } else {
            print("unknown: "); print(cmd); print("\n");
        }

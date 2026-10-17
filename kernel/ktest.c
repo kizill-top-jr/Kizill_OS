@@ -1,3 +1,4 @@
+#include <kernel/elf.h>
 #include <kernel/paging.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
@@ -78,6 +79,48 @@ void ktest_run(void) {
         pml4_destroy(test_pml4);
         check(1, "pml4_destroy completes");
     }
+
+    // test 10: heap stress (many allocations, write, verify, free)
+    void *ptrs[10];
+    int heap_ok = 1;
+
+    for (int i = 0; i < 10; i++) {
+        ptrs[i] = kmalloc(32);
+        if (!ptrs[i]) { heap_ok = 0; break; }
+        *(int *)ptrs[i] = i + 100;
+    }
+
+    if (heap_ok) {
+        for (int i = 0; i < 10; i++) {
+            if (*(int *)ptrs[i] != i + 100) {
+                heap_ok = 0;
+                break;
+            }
+        }
+    }
+
+    for (int i = 0; i < 10; i++) {
+        if (ptrs[i]) kfree(ptrs[i]);
+    }
+    check(heap_ok, "heap stress test (10 blocks)");
+
+    // test 11: ELF rejects garbage
+    u8 bad_elf[64];
+    for (int i = 0; i < 64; i++) bad_elf[i] = 0xAA;
+    int elf_res = elf_check(bad_elf, 64);
+    check(elf_res != 0, "elf_check rejects garbage");
+
+    // test 12: ELF rejects truncated file
+    u8 bad_elf2[64];
+    for (int i = 0; i < 64; i++) bad_elf2[i] = 0;
+    bad_elf2[0] = 0x7F;
+    bad_elf2[1] = 'E';
+    bad_elf2[2] = 'L';
+    bad_elf2[3] = 'F';
+    bad_elf2[4] = 2; // 64-bit
+    bad_elf2[5] = 1; // little endian
+    elf_res = elf_check(bad_elf2, 64);
+    check(elf_res != 0, "elf_check rejects missing phdrs");
 
     printk_color("=== tests done: ", FB_YELLOW);
     printk_dec(tests_passed);

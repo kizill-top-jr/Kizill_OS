@@ -158,7 +158,7 @@ void kmain(void) {
     u8 sc = 0xFF;
     while (1) {
         asm volatile("inb $0x60, %0" : "=a"(sc));
-        if (sc < 0x80) break; 
+        if (sc < 0x80) break;
     }
 #endif
     printk("hhdm: "); printk_hex(hhdm); printk("\n");

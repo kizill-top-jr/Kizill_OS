@@ -151,8 +151,12 @@ int map_page_in(u64 pml4_phys, u64 virt, u64 phys, u64 flags) {
            | PTE_PRESENT
            | (flags & PTE_NX);
 
-    // flush TLB only if we're mapping into the active PML4
-    if (pml4_phys == 0 || pml4_phys == pml4_master()) {
+    // flush TLB if we're mapping into the currently active PML4
+    u64 cur_cr3;
+    asm volatile("mov %%cr3, %0" : "=r"(cur_cr3));
+    cur_cr3 &= 0x000FFFFFFFFFF000ULL;
+
+    if (pml4_phys == 0 || pml4_phys == cur_cr3) {
         asm volatile("invlpg (%0)" : : "r"(virt) : "memory");
     }
 

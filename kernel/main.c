@@ -151,7 +151,8 @@ void kmain(void) {
     heap_init();
     ktest_run();
 
-    // pause so we can read test results
+    // debug pause (enable to read ktest results before shell)
+#if 0
     printk_color("\n[ PAUSED ] Press any key to continue...\n", FB_YELLOW);
 
     u8 sc = 0xFF;
@@ -159,7 +160,7 @@ void kmain(void) {
         asm volatile("inb $0x60, %0" : "=a"(sc));
         if (sc < 0x80) break; 
     }
-
+#endif
     printk("hhdm: "); printk_hex(hhdm); printk("\n");
     printk("pmm:  total="); printk_dec(pmm_total_pages());
     printk(" used=");       printk_dec(pmm_used_pages());

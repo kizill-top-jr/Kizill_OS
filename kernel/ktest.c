@@ -1,3 +1,4 @@
+#include <kernel/task.h>
 #include <kernel/tar.h>
 #include <kernel/elf.h>
 #include <kernel/paging.h>
@@ -60,7 +61,7 @@ void ktest_run(void) {
     if (test_pml4) {
         // test 8: map_page_in and virt_to_phys_in
         void *phys_page = pmm_alloc();
-        u64 virt_addr = 0x10000000; // какой-то левый адрес в юзерспейсе
+        u64 virt_addr = 0x10000000; // random user-space address
 
         if (phys_page) {
             u64 phys_addr = (u64)phys_page - hhdm_offset();
@@ -88,7 +89,7 @@ void ktest_run(void) {
     for (int i = 0; i < 10; i++) {
         ptrs[i] = kmalloc(32);
         if (!ptrs[i]) { heap_ok = 0; break; }
-        *(int *)ptrs[i] = i + 100;
+        *(int *)ptrs[i] = i + 100; // write unique value
     }
 
     if (heap_ok) {
@@ -141,6 +142,28 @@ void ktest_run(void) {
     for (int i = 0; i < 100; i++) small_tar[i] = 0;
     const tar_entry_t *e3 = tar_find(small_tar, 100, "test.elf");
     check(e3 == 0, "tar_find returns NULL on truncated buffer");
+
+    // test 16: task_create returns valid slot
+    int old_count = task_alive_count();
+
+    int tid = task_create(0, "ktest_dummy");
+
+    if (tid >= 0) {
+        check(task_alive_count() == old_count + 1, "task_create increases task count");
+
+        // test 17: task_get_info returns correct pid
+        task_info_t info;
+        if (task_get_info(tid, &info) == 0) {
+            check(info.pid > 0, "task_get_info returns valid pid");
+        } else {
+            check(0, "task_get_info failed");
+        }
+
+        extern void task_kill_for_test(int idx);
+        task_kill_for_test(tid);
+    } else {
+        check(0, "task_create failed");
+    }
 
     printk_color("=== tests done: ", FB_YELLOW);
     printk_dec(tests_passed);

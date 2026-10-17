@@ -149,6 +149,15 @@ void kmain(void) {
         printk_color("pml4: create failed\n", FB_RED);
     }
     heap_init();
+
+    printk("hhdm: "); printk_hex(hhdm); printk("\n");
+    printk("pmm:  total="); printk_dec(pmm_total_pages());
+    printk(" used=");       printk_dec(pmm_used_pages());
+    printk(" free=");       printk_dec(pmm_total_pages() - pmm_used_pages());
+    printk("\n\n");
+
+    scheduler_init();
+
     ktest_run();
 
     // debug pause (enable to read ktest results before shell)
@@ -161,13 +170,6 @@ void kmain(void) {
         if (sc < 0x80) break;
     }
 //#endif
-    printk("hhdm: "); printk_hex(hhdm); printk("\n");
-    printk("pmm:  total="); printk_dec(pmm_total_pages());
-    printk(" used=");       printk_dec(pmm_used_pages());
-    printk(" free=");       printk_dec(pmm_total_pages() - pmm_used_pages());
-    printk("\n\n");
-
-    scheduler_init();
 
    serial_puts("=== boot ok ===\n");
    spawn_shell();

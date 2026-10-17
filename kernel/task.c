@@ -322,3 +322,9 @@ int task_fork(u64 parent_frame_ptr, u64 pml4_phys, u64 parent_pid) {
 u64 task_current_cr3(void) {
     return tasks[current].cr3;
 }
+// TEST ONLY (used by ktest.c)
+void task_kill_for_test(int idx) {
+    if (idx < 0 || idx >= task_count) return;
+    tasks[idx].state = TASK_DEAD;
+    tasks[idx].cr3 = 0;
+}

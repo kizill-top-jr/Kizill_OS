@@ -1,3 +1,4 @@
+#include <kernel/paging.h>
 #include <kernel/types.h>
 #include <kernel/fb.h>
 #include <kernel/pmm.h>
@@ -28,7 +29,7 @@ void ktest_run(void) {
     void *p2 = pmm_alloc();
     check(p1 != 0, "pmm_alloc returns non-null");
     check(p1 != p2, "pmm_alloc returns different pages");
-    
+
     pmm_free(p1);
     pmm_free(p2);
 
@@ -49,6 +50,34 @@ void ktest_run(void) {
     check(a != b, "kmalloc returns different addresses");
     kfree(a);
     kfree(b);
+
+    // test 7: pml4_create returns valid phys addr
+    u64 test_pml4 = pml4_create();
+    check(test_pml4 != 0, "pml4_create returns non-null");
+
+    if (test_pml4) {
+        // test 8: map_page_in and virt_to_phys_in
+        void *phys_page = pmm_alloc();
+        u64 virt_addr = 0x10000000; // какой-то левый адрес в юзерспейсе
+
+        if (phys_page) {
+            u64 phys_addr = (u64)phys_page - hhdm_offset();
+            int map_res = map_page_in(test_pml4, virt_addr, phys_addr, PTE_PRESENT | PTE_WRITE | PTE_USER);
+
+            check(map_res == 0, "map_page_in succeeds");
+
+            u64 mapped_phys = virt_to_phys_in(test_pml4, virt_addr);
+            check(mapped_phys == phys_addr, "virt_to_phys_in returns correct phys addr");
+
+            pmm_free(phys_page);
+        } else {
+            check(0, "pmm_alloc failed for paging test");
+        }
+
+        // test 9: pml4_destroy frees without crashing
+        pml4_destroy(test_pml4);
+        check(1, "pml4_destroy completes");
+    }
 
     printk_color("=== tests done: ", FB_YELLOW);
     printk_dec(tests_passed);

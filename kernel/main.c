@@ -66,22 +66,40 @@ static int spawn_shell(void) {
     }
 
     void *s1 = pmm_alloc();
-    void *s2 = pmm_alloc();
-    if (!s1 || !s2) {
+    if (!s1) {
         pml4_destroy(pml4_phys);
         return -1;
     }
 
-    extern volatile struct limine_hhdm_request hhdm_request;
-    u64 hhdm = hhdm_request.response->offset;
+    void *s2 = pmm_alloc();
+    if (!s2) {
+        pmm_free(s1);
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
 
-    map_page_in(pml4_phys, 0x7FF000, (u64)s1 - hhdm,
-                PTE_PRESENT | PTE_WRITE | PTE_USER);
-    map_page_in(pml4_phys, 0x800000, (u64)s2 - hhdm,
-                PTE_PRESENT | PTE_WRITE | PTE_USER);
+    u64 hhdm = hhdm_offset();
+
+    if (map_page_in(pml4_phys, 0x7FF000, (u64)s1 - hhdm,
+                    PTE_PRESENT | PTE_WRITE | PTE_USER) != 0) {
+        pmm_free(s2);
+        pmm_free(s1);
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
+
+    if (map_page_in(pml4_phys, 0x800000, (u64)s2 - hhdm,
+                    PTE_PRESENT | PTE_WRITE | PTE_USER) != 0) {
+        pmm_free(s2);
+        pmm_free(s1);
+        pml4_destroy(pml4_phys);
+        return -1;
+    }
 
     int idx = task_create_user((void (*)(void))entry, 0x800000, pml4_phys, "sh");
     if (idx < 0) {
+        pmm_free(s2);
+        pmm_free(s1);
         pml4_destroy(pml4_phys);
         return -1;
     }

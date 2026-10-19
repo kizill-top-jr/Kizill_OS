@@ -132,8 +132,8 @@ static const char *state_name(int s) {
 static void redraw(void) {
     write(1, "\r", 1);
 
-    char render[96];
-    for (int i = 0; i < 96; i++) render[i] = ' ';
+    char render[160];
+    for (int i = 0; i < 160; i++) render[i] = ' ';
 
     render[0] = '>';
     render[1] = ' ';
@@ -154,8 +154,8 @@ static void redraw(void) {
         cursor_visible = 1;
     }
 
-    while (idx < 80) render[idx++] = ' ';
-    write(1, render, 80);
+    while (idx < 80) render[idx++] = ' ';  // temporary measure
+    write(1, render, 80);  // temporary measure
 
     int want_col = 2 + pos;
     if (cursor_visible) want_col++;

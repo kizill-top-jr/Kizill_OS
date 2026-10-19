@@ -2,25 +2,7 @@
 #define KERNEL_FB_H
 
 #include <kernel/types.h>
-
-/* Limine gives us this. We keep only what we actually use. */
-struct limine_framebuffer {
-    void     *address;
-    u64       width;
-    u64       height;
-    u64       pitch;
-    u16       bpp;
-    u8        memory_model;
-    u8        red_mask_size;
-    u8        red_mask_shift;
-    u8        green_mask_size;
-    u8        green_mask_shift;
-    u8        blue_mask_size;
-    u8        blue_mask_shift;
-    u8        unused[7];
-    u64       edid_size;
-    void     *edid;
-};
+#include <kernel/limine.h>
 
 /* Colors: 0x00RRGGBB, alpha ignored (Limine gives us 32bpp) */
 #define FB_BLACK   0x00000000

@@ -82,6 +82,11 @@ void ktest_run(void) {
         check(1, "pml4_destroy completes");
     }
 
+    // test 9.5: kmalloc alignment
+    void *aligned_p = kmalloc(64);
+    check(((u64)aligned_p % 16) == 0, "kmalloc returns 16-byte aligned memory");
+    if (aligned_p) kfree(aligned_p);
+
     // test 10: heap stress (many allocations, write, verify, free)
     void *ptrs[10];
     int heap_ok = 1;

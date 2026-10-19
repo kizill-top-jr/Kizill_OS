@@ -7,6 +7,7 @@ struct block {
     u64 size;              // payload size (not counting header)
     struct block *next;    // next block in the list
     u64 free;              // 1 = free, 0 = used
+    u64 pad;               // padding to make struct 32 bytes (16-byte aligned payload)
 };
 
 static struct block *head = 0;

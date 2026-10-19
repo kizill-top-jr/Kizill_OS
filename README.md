@@ -3,7 +3,7 @@
 Hobby OS from scratch. x86_64, no Linux/BSD base, no Buildroot, no Yocto.
 Just C, NASM, and stubbornness.
 
-## Status: v0.9.0
+## Status: v0.9.1
 
 Works:
 - Boot via Limine into long mode
@@ -61,6 +61,7 @@ Semver: MAJOR.MINOR.PATCH.
 - v0.8.0 - per-process PML4, CR3 switch
 - v0.8.1 - zombie reap, slot reuse, non-blocking wait
 - v0.9.0 - fork, about/uname commands, build script
+- v0.9.1 - bugfixes (fork, TLB, leaks, huge pages), kernel tests (ktest)
 
 ## License
 

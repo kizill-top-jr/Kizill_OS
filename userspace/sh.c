@@ -174,7 +174,7 @@ int main(void) {
     char buf[8];
 
     clear_();
-    write(1, "Kizill_OS Shell v0.9 - happy shell)\n", 36);
+    write(1, "Kizill_OS Shell v0.9.1 - happy shell)\n", 38);
 
     while (1) {
         len = 0;
@@ -318,7 +318,7 @@ int main(void) {
        } else if (str_eq(cmd, "uname")) {
            print("Kizill_OS \n");
            print("x86_64\n");
-       	   print("shell v0.4\n");
+       	   print("shell v0.9.1\n");
        } else if (str_eq(cmd, "about")) {
            print("Kizill_OS \n");
            print("hobby OS from scratch \n");

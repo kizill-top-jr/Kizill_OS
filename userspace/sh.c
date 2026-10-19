@@ -370,7 +370,6 @@ int main(void) {
                 print("[parent] fork failed\n");
             }
         } else if (str_eq(cmd, "crash")) {
-       } else if (str_eq(cmd, "crash")) {
            print("crashing...\n");
            asm volatile("xor %%rax, %%rax\n\tdiv %%rax" ::: "rax");
        } else if (str_eq(cmd, "reboot")) {

@@ -24,7 +24,7 @@ static long sys_call(long n, long a, long b, long c) {
 #define SYS_EXIT   60
 #define SYS_WAIT   61
 #define SYS_CLEAR  99
-#define SYS_EXEC   100
+#define SYS_SPAWN  100
 #define SYS_UPTIME 101
 #define SYS_TASKS  102
 #define SYS_REBOOT 103
@@ -66,8 +66,8 @@ static long exit_(long c) {
 static long clear_(void) {
     return sys_call(SYS_CLEAR, 0, 0, 0);
 }
-static long exec_(const char *name) {
-    return sys_call(SYS_EXEC, (long)name, 0, 0);
+static long spawn_(const char *name) {
+    return sys_call(SYS_SPAWN, (long)name, 0, 0);
 }
 static long wait_(long pid) {
     return sys_call(SYS_WAIT, pid, 0, 0);
@@ -379,12 +379,12 @@ int main(void) {
        } else if (str_pref(cmd, "echo ")) {
            print(cmd + 5); print("\n");
        } else if (str_eq(cmd, "hello")) {
-           long r = exec_("hello.elf");
-           if (r != 0) print("exec failed\n");
+           long r = spawn_("hello.elf");
+           if (r != 0) print("spawn failed\n");
            else { while (wait_(-1) < 0) yield_(); }
         } else if (str_eq(cmd, "test")) {
-            long r = exec_("test.elf");
-            if (r != 0) print("exec failed\n");
+            long r = spawn_("test.elf");
+            if (r != 0) print("spawn failed\n");
             else { while (wait_(-1) < 0) yield_(); }
        } else {
            print("unknown: "); print(cmd); print("\n");

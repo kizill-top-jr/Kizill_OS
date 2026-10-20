@@ -106,12 +106,12 @@ int main(void) {
         print("[test 6] tasks list FAILED\n");
     }
 
-    // test 7: invalid exec pointer
-    long r_exec = sys_call(100, 0xFFFF800000000000, 0, 0); // SYS_EXEC
+    // test 7: invalid spawn pointer
+    long r_exec = sys_call(100, 0xFFFF800000000000, 0, 0); // SYS_SPAWN
     if (r_exec < 0) {
-        print("[test 7] invalid exec rejected: OK\n");
+        print("[test 7] invalid spawn rejected: OK\n");
     } else {
-        print("[test 7] FAIL: invalid exec was allowed!\n");
+        print("[test 7] FAIL: invalid spawn was allowed!\n");
     }
 
     print("=== all tests passed ===\n");

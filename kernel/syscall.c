@@ -17,7 +17,7 @@
 #define SYS_EXIT    60
 #define SYS_WAIT    61
 #define SYS_CLEAR   99
-#define SYS_EXEC    100
+#define SYS_SPAWN   100
 #define SYS_UPTIME  101
 #define SYS_TASKS   102
 #define SYS_REBOOT  103
@@ -48,7 +48,7 @@ static void do_reboot(void) {
     for (;;) asm volatile("hlt");
 }
 
-static int do_exec(const char *name) {
+static int do_spawn(const char *name) {
     if (!module_request.response || module_request.response->module_count == 0)
         return -1;
 
@@ -189,9 +189,9 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         f->rax = 0;
         return (u64)f;
 
-    case SYS_EXEC: {
+    case SYS_SPAWN: {
         char *name = (char *)f->rdi;
-        int r = do_exec(name);
+        int r = do_spawn(name);
         f->rax = (u64)r;
         return (u64)f;
     }

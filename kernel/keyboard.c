@@ -96,7 +96,12 @@ void keyboard_handler(void) {
         int released = sc & 0x80;
         u8 code = sc & 0x7F;
 
-        if (released) return;   // ignore all E0 releases for now
+        if (released) {
+            // handle release of extended modifiers
+            if (code == 0x38) alt = 0;   // Right Alt
+            if (code == 0x1D) ctrl = 0;  // Right Ctrl
+            return;
+        }
 
         switch (code) {
         case 0x48: push_char(KEY_UP);    return;   // Up

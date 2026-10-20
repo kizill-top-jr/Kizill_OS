@@ -11,13 +11,14 @@ _start:
 
     ; enable SSE (Limine doesn't do it)
     mov rax, cr0
-    and ax, 0xFFFB        ; clear CR0.EM (bit 2) — no FPU emulation
-    or  ax, 0x2           ; set   CR0.MP (bit 1) — monitor coprocessor
+    and ax, 0xFFFB        ; clear CR0.EM (bit 2) - no FPU emulation
+    or  ax, 0x2           ; set   CR0.MP (bit 1) - monitor coprocessor
     mov cr0, rax
 
     mov rax, cr4
     or  ax, (3 << 9)      ; set CR4.OSFXSR + CR4.OSXMMEXCPT
-    and rax, ~(1 << 17)   ; CLEAR CR4.PCIDE (bit 17) -- we don't use PCID
+    or  ax, (1 << 20)     ; set CR4.SMEP
+    and rax, ~(1 << 17)   ; CLEAR CR4.PCIDE
     mov cr4, rax
 
     ; zero .bss — Limine doesn't guarantee it

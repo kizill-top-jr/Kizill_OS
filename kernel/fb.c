@@ -180,6 +180,12 @@ static void scroll_up(void) {
         : "memory"
     );
 
+    // copy the remaining bytes (if n is not a multiple of 8)
+    u64 done = n_qwords * 8;
+    for (u64 i = done; i < n; i++) {
+        dst[i] = src[i];
+    }
+
     /* clear bottom line */
     for (u64 y = g_fb->height - FONT_H; y < g_fb->height; y++)
         for (u64 x = 0; x < g_fb->width; x++)

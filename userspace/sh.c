@@ -151,6 +151,7 @@ static void redraw(void) {
 }
 
 static void load_history(int idx) {
+    for (int i = 0; i < 128; i++) line[i] = 0; // clear buffer
     str_copy(line, history[idx]);
     len = strlen_(line);
     pos = len;

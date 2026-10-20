@@ -173,9 +173,21 @@ isr_common:
     jmp .done
 
 .eoi:
+    ; Check if this is a slave IRQ (vector >= 40)
+    ; Vector is saved at [rsp + 15*8] (after 15 pushed registers)
+    mov rax, [rsp + 15*8]
+    cmp rax, 40
+    jl .master_eoi
+
+    ; send EOI to slave PIC (IRQ >= 8)
+    mov al, 0x20
+    out 0xA0, al
+
+.master_eoi:
+    ; always send EOI to master PIC
     mov al, 0x20
     out 0x20, al
-    ; no slave EOI: we only handle master PIC IRQs (0-7) for now
+    jmp .done
 
 .done:
     pop r15

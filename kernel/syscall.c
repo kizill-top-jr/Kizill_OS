@@ -9,18 +9,10 @@
 #include <kernel/elf.h>
 #include <kernel/tar.h>
 #include <kernel/limine.h>
-
 #include <uapi/syscall.h>
 
 extern volatile struct limine_module_request module_request;
 extern volatile u64 g_ticks;
-
-struct syscall_frame {
-    u64 r15, r14, r13, r12, r11, r10, r9, r8;
-    u64 rbp, rdi, rsi, rdx, rcx, rbx, rax;
-    u64 vector, errcode;
-    u64 rip, cs, rflags, rsp, ss;
-};
 
 static void do_clear(void) {
     extern void fb_clear(u32 color);

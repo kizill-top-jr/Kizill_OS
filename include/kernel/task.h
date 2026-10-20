@@ -28,7 +28,6 @@ void  scheduler_init(void);
 int   task_create(void (*entry)(void), const char *name);
 int   task_create_user(void (*entry)(void), u64 user_stack,
                        u64 pml4_phys, const char *name);
-int   task_fork(u64 parent_frame_ptr, u64 pml4_phys, u64 parent_pid);
 int   task_exists(int pid);
 void  task_set_parent(int idx, u64 parent_pid);
 u64   scheduler_tick(u64 current_rsp);
@@ -55,6 +54,14 @@ typedef struct {
 int task_get_info(int idx, task_info_t *out);
 int task_alive_count(void);
 int task_is_alive_by_name(const char *name);
+
+struct syscall_frame {
+    u64 r15, r14, r13, r12, r11, r10, r9, r8;
+    u64 rbp, rdi, rsi, rdx, rcx, rbx, rax;
+    u64 vector, errcode;
+    u64 rip, cs, rflags, rsp, ss;
+};
+int   task_fork(u64 parent_frame_ptr, u64 pml4_phys, u64 parent_pid);
 
 void task_kill_for_test(int idx);
 

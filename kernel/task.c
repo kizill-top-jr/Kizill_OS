@@ -291,7 +291,7 @@ int task_fork(u64 parent_frame_ptr, u64 pml4_phys, u64 parent_pid) {
 
     // copy parent's syscall frame onto child kernel stack
     // rax = 0 so child sees fork() -> 0
-    u64 frame_size = 22 * 8;   // sizeof(struct syscall_frame)
+    u64 frame_size = sizeof(struct syscall_frame);
     u64 frame_addr = stack_top - frame_size;
 
     u8 *src = (u8 *)parent_frame_ptr;

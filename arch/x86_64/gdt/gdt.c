@@ -20,6 +20,7 @@ struct gdt_ptr { u16 limit; u64 base; } __attribute__((packed));
 static struct gdt_entry gdt[7] __attribute__((section(".data")));
 static struct tss_entry tss   __attribute__((section(".data")));
 static struct gdt_ptr   gdtr  __attribute__((section(".data")));
+static u8 df_stack[16384] __attribute__((aligned(16)));
 
 extern void gdt_load(struct gdt_ptr *ptr);
 extern void tss_load(void);
@@ -51,6 +52,8 @@ void gdt_init(void) {
     u8 *p = (u8 *)&tss;
     for (u64 i = 0; i < sizeof(tss); i++) p[i] = 0;
     tss.iomap_base = 0xFFFF;
+    // set up IST1 (index 0) for Double Fault (#DF)
+    tss.ist[0] = (u64)(df_stack + sizeof(df_stack));
 
     set_gate(0, 0, 0, 0x00, 0x00);
     set_gate(1, 0, 0xFFFFF, 0x9A, 0xA0);

@@ -17,6 +17,20 @@ int elf_check(const u8 *data, u64 size) {
     if (h->e_phnum == 0) return -1;
     if (h->e_phoff + h->e_phnum * h->e_phentsize > size) return -1;
 
+    // check that entry point falls inside a loadable segment
+    int entry_valid = 0;
+    for (u16 i = 0; i < h->e_phnum; i++) {
+        struct elf64_phdr *ph = (struct elf64_phdr *)
+            (data + h->e_phoff + (u64)i * h->e_phentsize);
+        if (ph->p_type == PT_LOAD) {
+            if (h->e_entry >= ph->p_vaddr && h->e_entry < ph->p_vaddr + ph->p_memsz) {
+                entry_valid = 1;
+                break;
+            }
+        }
+    }
+    if (!entry_valid) return -1;
+
     return 0;
 }
 

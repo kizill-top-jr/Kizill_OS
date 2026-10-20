@@ -46,7 +46,7 @@ void idt_init(void) {
         set_gate(i, (u64)isr_stub_default, 0x08, 0, 0x8E);
 
     set_gate(0,  (u64)isr_stub_0,        0x08, 0, 0x8E);
-    set_gate(8,  (u64)isr_stub_8,        0x08, 0, 0x8E);
+    set_gate(8,  (u64)isr_stub_8,        0x08, 1, 0x8E);
     set_gate(13, (u64)isr_stub_13,       0x08, 0, 0x8E);
     set_gate(14, (u64)isr_stub_14,       0x08, 0, 0x8E);
     set_gate(32, (u64)isr_stub_timer,    0x08, 0, 0x8E);

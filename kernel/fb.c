@@ -132,6 +132,11 @@ void fb_init(struct limine_framebuffer *fb) {
     g_fb = fb;
     g_cursor_x = 0;
     g_cursor_y = 0;
+
+    // we only support 32bpp (4 bytes per pixel)
+    if (g_fb->bpp != 32) {
+        for (;;) asm volatile("hlt"); // halt if unsupported
+    }
 }
 
 /* ---- drawing ---- */
@@ -165,7 +170,15 @@ static void scroll_up(void) {
     u8 *dst = (u8 *)g_fb->address;
     u8 *src = dst + line_bytes;
     u64 n = total - line_bytes;
-    for (u64 i = 0; i < n; i++) dst[i] = src[i];
+
+    // fast copy: 8 bytes at a time
+    u64 n_qwords = n / 8;
+    asm volatile(
+        "rep movsq"
+        : "+D"(dst), "+S"(src), "+c"(n_qwords)
+        :
+        : "memory"
+    );
 
     /* clear bottom line */
     for (u64 y = g_fb->height - FONT_H; y < g_fb->height; y++)

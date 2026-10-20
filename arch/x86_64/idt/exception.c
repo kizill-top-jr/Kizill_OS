@@ -37,6 +37,17 @@ static void kernel_panic(struct exception_frame *f) {
     printk("  err: "); printk_hex(f->errcode);
     printk("\n");
 
+    printk("rsp: "); printk_hex(f->rsp);
+    printk("  rbp: "); printk_hex(f->rbp);
+    printk("  rax: "); printk_hex(f->rax);
+    printk("  rbx: "); printk_hex(f->rbx);
+    printk("\n");
+    printk("rcx: "); printk_hex(f->rcx);
+    printk("  rdx: "); printk_hex(f->rdx);
+    printk("  rsi: "); printk_hex(f->rsi);
+    printk("  rdi: "); printk_hex(f->rdi);
+    printk("\n");
+
     if (vec == 14) {
         u64 cr2;
         asm volatile("mov %%cr2, %0" : "=r"(cr2));

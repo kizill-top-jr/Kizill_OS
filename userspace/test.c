@@ -69,7 +69,7 @@ int main(void) {
         print("[test 3] fork FAILED\n");
     }
     // test 4: getpid
-    long my_pid = sys_call(39, 0, 0, 0); // SYS_GETPID
+    long my_pid = sys_call(SYS_GETPID, 0, 0, 0); // SYS_GETPID
     if (my_pid > 0) {
         print("[test 4] getpid: OK (pid=");
         print_num(my_pid);
@@ -79,7 +79,7 @@ int main(void) {
     }
 
     // test 5: uptime
-    long up = sys_call(101, 0, 0, 0); // SYS_UPTIME
+    long up = sys_call(SYS_UPTIME, 0, 0, 0); // SYS_UPTIME
     if (up > 0) {
         print("[test 5] uptime: OK\n");
     } else {
@@ -94,7 +94,7 @@ int main(void) {
         char name[32];
     } tasks[8];
 
-    long n = sys_call(102, (long)tasks, 8, 0); // SYS_TASKS
+    long n = sys_call(SYS_TASKS, (long)tasks, 8, 0); 
     if (n > 0) {
         print("[test 6] tasks list: OK (found ");
         print_num(n);
@@ -104,7 +104,7 @@ int main(void) {
     }
 
     // test 7: invalid spawn pointer
-    long r_exec = sys_call(100, 0xFFFF800000000000, 0, 0); // SYS_SPAWN
+    long r_exec = sys_call(SYS_SPAWN, 0xFFFF800000000000, 0, 0);  // SYS_SPAWN
     if (r_exec < 0) {
         print("[test 7] invalid spawn rejected: OK\n");
     } else {

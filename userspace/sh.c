@@ -320,7 +320,7 @@ int main(void) {
            print("Kizill_OS \n");
            print("hobby OS from scratch \n");
            print("x86_64, C, NASM \n");
-           print("grows where nothing else can) \n");
+           print("grows where nothing else can\n");
        } else if (str_eq(cmd, "pid")) {
            print("pid: "); print_dec(getpid_()); print("\n");
        } else if (str_eq(cmd, "uptime")) {

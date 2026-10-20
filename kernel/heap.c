@@ -101,20 +101,25 @@ void kfree(void *ptr) {
     used_bytes -= b->size;
 
     // coalesce with next if both free
-    if (b->next && b->next->free) {
+    while (b->next && b->next->free) {
         b->size += sizeof(struct block) + b->next->size;
         b->next = b->next->next;
         total_bytes -= sizeof(struct block);
     }
 
-    // coalesce with previous -- need to walk the list
-    // (skipping for now -- O(n) but fine for small heaps)
+    // coalesce with previous need to walk the list
+    // (skipping for now O(n) but fine for small heaps)
     struct block *prev = head;
     while (prev && prev->next != b) prev = prev->next;
-    if (prev && prev->free) {
+
+    while (prev && prev->free) {
         prev->size += sizeof(struct block) + b->size;
         prev->next = b->next;
         total_bytes -= sizeof(struct block);
+        b = prev; // move b pointer back to the merged block
+        // and we need to find the previous one again for the next iteration
+        prev = head;
+        while (prev && prev->next != b) prev = prev->next;
     }
 }
 

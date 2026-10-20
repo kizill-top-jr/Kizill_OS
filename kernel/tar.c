@@ -18,8 +18,8 @@ static u64 strlen_(const char *s) {
     return n;
 }
 
-const tar_entry_t *tar_next(const u8 *base, u64 size, const tar_entry_t *prev) {
-    static tar_entry_t entry;
+const tar_entry_t *tar_next(const u8 *base, u64 size, const tar_entry_t *prev, tar_entry_t *out) {
+    if (!out) return 0;
 
     u64 off = 0;
     if (prev) {
@@ -43,17 +43,18 @@ const tar_entry_t *tar_next(const u8 *base, u64 size, const tar_entry_t *prev) {
             continue;
         }
 
-        entry.name = name;
-        entry.size = fsize;
-        entry.data = base + off + TAR_BLOCK;
-        return &entry;
+        out->name = name;
+        out->size = fsize;
+        out->data = base + off + TAR_BLOCK;
+        return out;
     }
     return 0;
 }
 
 const tar_entry_t *tar_find(const u8 *base, u64 size, const char *name) {
     const tar_entry_t *e = 0;
-    while ((e = tar_next(base, size, e))) {
+    tar_entry_t temp;
+    while ((e = tar_next(base, size, e, &temp))) {
         u64 i = 0;
         while (e->name[i] && name[i] && e->name[i] == name[i]) i++;
         if (e->name[i] == 0 && name[i] == 0) return e;

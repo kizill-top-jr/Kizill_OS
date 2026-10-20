@@ -16,18 +16,7 @@ static long sys_call(long n, long a, long b, long c) {
     return ret;
 }
 
-#define SYS_WRITE  1
-#define SYS_READ   0
-#define SYS_YIELD  24
-#define SYS_GETPID 39
-#define SYS_FORK   57
-#define SYS_EXIT   60
-#define SYS_WAIT   61
-#define SYS_CLEAR  99
-#define SYS_SPAWN  100
-#define SYS_UPTIME 101
-#define SYS_TASKS  102
-#define SYS_REBOOT 103
+#include <uapi/syscall.h>
 
 #define KEY_UP     0x80
 #define KEY_DOWN   0x81

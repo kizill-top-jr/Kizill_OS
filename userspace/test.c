@@ -16,10 +16,7 @@ static long sys_call(long n, long a, long b, long c) {
     return ret;
 }
 
-#define SYS_WRITE   1
-#define SYS_FORK    57
-#define SYS_EXIT    60
-#define SYS_WAIT    61
+#include <uapi/syscall.h>
 
 static void print(const char *s) {
     long n = 0;

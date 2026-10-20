@@ -14,7 +14,7 @@ mkdir -p $BUILD_DIR
 for src in $USER_DIR/*.c; do
     name=$(basename "$src" .c)
     echo "compiling $name"
-    $CC -ffreestanding -nostdlib -static -O2 \
+    $CC -ffreestanding -nostdlib -static -O2 -Iinclude \
         -fno-stack-protector -mno-red-zone \
         -mno-sse -mno-sse2 -mno-mmx -mno-avx \
         -mgeneral-regs-only \

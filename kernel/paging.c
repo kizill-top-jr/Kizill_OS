@@ -239,7 +239,11 @@ static u64 copy_table_level(u64 src_phys, int level) {
             // LEAF: real copy, no COW
             u64 old_phys = e & 0x000FFFFFFFFFF000ULL;
             void *new_page = pmm_alloc();
-            if (!new_page) return 0;
+            if (!new_page) {
+                free_table_level(dst_phys, 1);
+                pmm_free(dst);
+                return 0;
+            }
             u64 new_phys = (u64)new_page - hhdm();
 
             u8 *dst_page = (u8 *)new_page;
@@ -253,12 +257,20 @@ static u64 copy_table_level(u64 src_phys, int level) {
             dst[i] = new_phys | flags | PTE_PRESENT | nx;
         } else {
             // unsupported huge page, abort fork
-            if (level == 2 && (e & PTE_HUGE)) return 0;
+            if (level == 2 && (e & PTE_HUGE)) {
+                free_table_level(dst_phys, level);
+                pmm_free(dst);
+                return 0;
+            }
 
             // INTERMEDIATE: recurse, deep copy
             u64 child_src = e & 0x000FFFFFFFFFF000ULL;
             u64 child_dst = copy_table_level(child_src, level - 1);
-            if (!child_dst) return 0;
+            if (!child_dst) {
+                free_table_level(dst_phys, level);
+                pmm_free(dst);
+                return 0;
+            }
 
             // preserve USER flag, drop WRITE on intermediates
             u64 flags = e & 0xFFF;
@@ -289,7 +301,10 @@ u64 pml4_copy_for_fork(u64 src_pml4) {
 
         u64 pdpt_src = e & 0x000FFFFFFFFFF000ULL;
         u64 pdpt_dst = copy_table_level(pdpt_src, 3);
-        if (!pdpt_dst) return 0;
+        if (!pdpt_dst) {
+            pml4_destroy(dst_phys);
+            return 0;
+        }
 
         u64 flags = e & 0xFFF;
         dst[i] = pdpt_dst | flags | PTE_PRESENT;

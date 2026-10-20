@@ -10,6 +10,7 @@
 void pmm_init(void);
 void pmm_ref_inc(void *page);
 void pmm_ref_dec(void *page);
+void pmm_free_huge(void *page);
 void *pmm_alloc(void);          // returns virtual address (HHDM) of a free page
 void  pmm_free(void *page);
 u64   pmm_total_pages(void);

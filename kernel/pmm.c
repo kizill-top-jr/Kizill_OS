@@ -197,3 +197,22 @@ void pmm_ref_inc(void *page) {
 void pmm_ref_dec(void *page) {
     pmm_free(page);
 }
+// free a 2MB huge page (512 contiguous 4KB pages)
+void pmm_free_huge(void *page) {
+    u64 v = (u64)page;
+    if (v < hhdm_offset) return;
+    u64 idx = (v - hhdm_offset) / PAGE_SIZE;
+
+    for (int i = 0; i < 512; i++) {
+        if (idx + i >= total_pages) break;
+
+        if (page_refcount[idx + i] > 0) {
+            page_refcount[idx + i]--;
+        }
+
+        if (page_refcount[idx + i] == 0 && bitmap_tst(idx + i)) {
+            bitmap_clr(idx + i);
+            used_pages--;
+        }
+    }
+}

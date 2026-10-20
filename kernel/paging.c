@@ -65,11 +65,8 @@ static void free_table_level(u64 table_phys, int level) {
             free_user_page(e);
         } else if (level == 2) {
             if (e & PTE_HUGE) {
-                // 2MB page, free all 512 small pages inside
                 u64 phys = e & 0x000FFFFFFFE00000ULL;
-                for (int j = 0; j < 512; j++) {
-                    pmm_free((void *)(hhdm() + phys + j * 0x1000));
-                }
+                pmm_free_huge((void *)(hhdm() + phys));
             } else {
                 u64 child = e & 0x000FFFFFFFFFF000ULL;
                 free_table_level(child, 1);

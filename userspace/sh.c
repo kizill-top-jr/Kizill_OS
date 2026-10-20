@@ -105,8 +105,16 @@ static void print_dec(long v) {
     char buf[24];
     int n = 0;
     if (v == 0) { write(1, "0", 1); return; }
-    if (v < 0) { write(1, "-", 1); v = -v; }
-    while (v > 0) { buf[n++] = '0' + (v % 10); v /= 10; }
+
+    unsigned long uv;
+    if (v < 0) {
+        write(1, "-", 1);
+        uv = (unsigned long)(-(v + 1)) + 1; // safe negation
+    } else {
+        uv = (unsigned long)v;
+    }
+
+    while (uv > 0) { buf[n++] = '0' + (uv % 10); uv /= 10; }
     for (int i = n - 1; i >= 0; i--) write(1, &buf[i], 1);
 }
 static const char *state_name(int s) {

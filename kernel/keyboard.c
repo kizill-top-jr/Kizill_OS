@@ -2,7 +2,7 @@
 
 #define KBD_BUF_SIZE 256
 
-static volatile char kbd_buf[KBD_BUF_SIZE];
+static volatile u8 kbd_buf[KBD_BUF_SIZE];
 static volatile u64  kbd_head = 0;
 static volatile u64  kbd_tail = 0;
 
@@ -64,7 +64,7 @@ static inline int is_alpha(char c) {
     return c >= 'a' && c <= 'z';
 }
 
-static void push_char(char c) {
+static void push_char(u8 c) {
     u64 next = (kbd_head + 1) % KBD_BUF_SIZE;
     if (next != kbd_tail) {
         kbd_buf[kbd_head] = c;
@@ -154,10 +154,10 @@ void keyboard_handler(void) {
 
 int keyboard_getchar(void) {
     if (kbd_head == kbd_tail) return -1;
-    char c = kbd_buf[kbd_tail];
+    u8 c = kbd_buf[kbd_tail];
     asm volatile("" ::: "memory");
     kbd_tail = (kbd_tail + 1) % KBD_BUF_SIZE;
-    return (int)(unsigned char)c;
+    return (int)c;
 }
 
 int keyboard_has_data(void) {

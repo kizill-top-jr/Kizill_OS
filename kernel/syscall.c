@@ -141,7 +141,7 @@ u64 syscall_dispatch(struct syscall_frame *f) {
             return (u64)f;
         }
 
-        if (!keyboard_has_data()) { f->rax = 0; return (u64)f; }
+        if (!keyboard_has_data()) { f->rax = (u64)-1; return (u64)f; }
 
         u64 got = 0;
         while (got < len) {

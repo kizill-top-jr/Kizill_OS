@@ -30,10 +30,16 @@ static void do_clear(void) {
 }
 
 static void do_reboot(void) {
-    // 0xCF9 = reset control register
-    // 0x06 = warm reset, 0x0E = full reset
+    // try warm reset first
     asm volatile("outb %0, %1" : : "a"((u8)0x06), "Nd"((u16)0xCF9));
-    // if that didn't work, triple fault
+    // try cold reset
+    asm volatile("outb %0, %1" : : "a"((u8)0x0E), "Nd"((u16)0xCF9));
+
+    // if that didn't work, force triple fault (load null IDT and trigger exception)
+    struct { u16 limit; u64 base; } __attribute__((packed)) null_idt = {0, 0};
+    asm volatile("lidt %0" : : "m"(null_idt));
+    asm volatile("int $3");
+
     for (;;) asm volatile("hlt");
 }
 
@@ -168,7 +174,12 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         if (task_try_reap(my_pid, want, &code)) {
             f->rax = (u64)code;
         } else {
-            f->rax = (u64)-1;
+            // if we wait for a specific pid that doesn't exist, return ECHILD
+            if (want > 0 && !task_exists(want)) {
+                f->rax = (u64)-ECHILD;
+            } else {
+                f->rax = (u64)-EAGAIN;
+            }
         }
         return (u64)f;
     }
@@ -250,10 +261,7 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         return task_exit_current((int)f->rdi);
 
     default:
-        printk_color("[sys] unknown: ", FB_RED);
-        printk_dec(f->rax);
-        printk("\n");
-        f->rax = (u64)-1;
+        f->rax = (u64)-1; // -ENOSYS
         return (u64)f;
     }
 }

@@ -376,13 +376,19 @@ int main(void) {
        } else if (str_pref(cmd, "echo ")) {
            print(cmd + 5); print("\n");
        } else if (str_eq(cmd, "hello")) {
-           long r = spawn_("hello.elf");
-           if (r != 0) print("spawn failed\n");
-           else { while (wait_(-1) < 0) yield_(); }
+            long r = spawn_("hello.elf");
+            if (r != 0) print("spawn failed\n");
+            else { 
+                long code;
+                while ((code = wait_(-1)) == -EAGAIN) yield_(); 
+            }
         } else if (str_eq(cmd, "test")) {
             long r = spawn_("test.elf");
             if (r != 0) print("spawn failed\n");
-            else { while (wait_(-1) < 0) yield_(); }
+            else {
+                long code;
+                while ((code = wait_(-1)) == -EAGAIN) yield_(); 
+            }
        } else {
            print("unknown: "); print(cmd); print("\n");
        }

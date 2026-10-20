@@ -328,3 +328,11 @@ void task_kill_for_test(int idx) {
     tasks[idx].state = TASK_DEAD;
     tasks[idx].cr3 = 0;
 }
+int task_exists(int pid) {
+    for (int i = 0; i < task_count; i++) {
+        if ((int)tasks[i].pid == pid && tasks[i].state != TASK_DEAD) {
+            return 1;
+        }
+    }
+    return 0;
+}

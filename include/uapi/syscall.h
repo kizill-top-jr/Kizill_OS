@@ -13,5 +13,7 @@
 #define SYS_UPTIME  101
 #define SYS_TASKS   102
 #define SYS_REBOOT  103
+#define EAGAIN      11
+#define ECHILD      10
 
 #endif

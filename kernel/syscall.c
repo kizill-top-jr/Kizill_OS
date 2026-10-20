@@ -117,9 +117,6 @@ static int do_exec(const char *name) {
         return -1;
     }
 
-    extern void task_set_parent(int idx, u64 parent_pid);
-    task_set_parent(idx, (u64)task_current_pid());
-
     return 0;
 }
 
@@ -208,7 +205,7 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         task_info_t *ubuf = (task_info_t *)f->rdi;
         int maxn = (int)f->rsi;
         if (maxn <= 0) { f->rax = 0; return (u64)f; }
-        if (maxn > 16) maxn = 16;
+        if (maxn > MAX_TASKS) maxn = MAX_TASKS;
 
         u64 bytes = (u64)maxn * sizeof(task_info_t);
         if (validate_user_ptr(task_current_cr3(), (u64)ubuf, bytes, 1) != 0) {
@@ -217,7 +214,7 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         }
 
         int written = 0;
-        for (int i = 0; i < 8 && written < maxn; i++) {
+        for (int i = 0; i < MAX_TASKS && written < maxn; i++) {
             task_info_t info;
             if (task_get_info(i, &info) == 0) {
                 ubuf[written++] = info;
@@ -233,9 +230,6 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         return (u64)f;
 
     case SYS_FORK: {
-        extern u64 task_current_cr3(void);
-        extern int task_current_pid(void);
-
         u64 parent_cr3 = task_current_cr3();
         u64 parent_pid = (u64)task_current_pid();
         u64 child_pml4 = pml4_copy_for_fork(parent_cr3);

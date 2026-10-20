@@ -184,6 +184,13 @@ void pmm_ref_inc(void *page) {
     if (v < hhdm_offset) return;
     u64 idx = (v - hhdm_offset) / PAGE_SIZE;
     if (idx >= total_pages) return;
+
+    // if we are resurrecting a freed page, mark it as used again
+    if (page_refcount[idx] == 0 && !bitmap_tst(idx)) {
+        bitmap_set(idx);
+        used_pages++;
+    }
+
     if (page_refcount[idx] < 0xFFFF) page_refcount[idx]++;
 }
 

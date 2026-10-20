@@ -1,20 +1,9 @@
 // Kizill_OS shell - ring 3
 
-static long sys_call(long n, long a, long b, long c) {
-    long ret;
-    asm volatile(
-        "mov %1, %%rax\n"
-        "mov %2, %%rdi\n"
-        "mov %3, %%rsi\n"
-        "mov %4, %%rdx\n"
-        "int $0x80\n"
-        "mov %%rax, %0\n"
-        : "=r"(ret)
-        : "r"(n), "r"(a), "r"(b), "r"(c)
-        : "rax", "rdi", "rsi", "rdx", "memory"
-    );
-    return ret;
-}
+#include <uapi/sys_call.h>
+#include <uapi/syscall.h>
+
+#define SYS_WRITE  1
 
 #include <uapi/syscall.h>
 
@@ -187,7 +176,7 @@ int main(void) {
             long n = read_(0, buf, 1);
             if (n <= 0) {
                 long t = uptime_();
-                if (t - last_blink >= 8) {
+                if (t - last_blink >= 50) {
                     cursor_on = !cursor_on;
                     last_blink = t;
                     redraw();

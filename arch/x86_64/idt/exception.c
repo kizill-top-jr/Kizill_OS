@@ -58,16 +58,6 @@ static void kernel_panic(struct exception_frame *f) {
 }
 
 u64 exception_dispatch(struct exception_frame *f) {
-    // DEBUG: log CR4 once
-    static int cr4_logged = 0;
-    if (!cr4_logged) {
-        u64 cr4;
-        asm volatile("mov %%cr4, %0" : "=r"(cr4));
-        serial_puts("CR4=");
-        serial_hex(cr4);
-        serial_puts("\n");
-        cr4_logged = 1;
-    }
     asm volatile("cli" ::: "memory");
     u64 vec = f->vector;
 

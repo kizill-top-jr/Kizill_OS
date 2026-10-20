@@ -1,20 +1,9 @@
 // Kizill_OS basic syscall test
 
-static long sys_call(long n, long a, long b, long c) {
-    long ret;
-    asm volatile(
-        "mov %1, %%rax\n"
-        "mov %2, %%rdi\n"
-        "mov %3, %%rsi\n"
-        "mov %4, %%rdx\n"
-        "int $0x80\n"
-        "mov %%rax, %0\n"
-        : "=r"(ret)
-        : "r"(n), "r"(a), "r"(b), "r"(c)
-        : "rax", "rdi", "rsi", "rdx", "memory"
-    );
-    return ret;
-}
+#include <uapi/sys_call.h>
+#include <uapi/syscall.h>
+
+#define SYS_WRITE  1
 
 #include <uapi/syscall.h>
 

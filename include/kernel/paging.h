@@ -47,4 +47,7 @@ int map_page(u64 virt, u64 phys, u64 flags);
 u64 virt_to_phys_in(u64 pml4_phys, u64 virt);
 u64 virt_to_phys(u64 virt);
 
+int copy_from_user(u64 pml4_phys, void *dst, const void *src, u64 len);
+int copy_to_user(u64 pml4_phys, void *dst, const void *src, u64 len);
+
 #endif

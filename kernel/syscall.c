@@ -46,14 +46,9 @@ static int do_spawn(const char *name) {
     u64 tar_size = mod->size;
 
     //validate the whole 64-byte name buffer once
-    u64 cr3 = task_current_cr3();
-    if (validate_user_ptr(cr3, (u64)name, 64, 0) !=0) return -1;
-
     char fname[64];
-    for (int i = 0; i < 64; i++) {
-        fname[i] = name[i];
-        if (fname[i] == 0) break;
-    }
+    u64 cr3 = task_current_cr3();
+    if (copy_from_user(cr3, fname, name, 64) != 0) return -1;
     fname[63] = 0;
     if (fname[0] == 0) return -1;
 
@@ -112,16 +107,18 @@ static int do_spawn(const char *name) {
 u64 syscall_dispatch(struct syscall_frame *f) {
     switch (f->rax) {
     case SYS_WRITE: {
-        char *buf = (char *)f->rsi;
         u64 len = f->rdx;
+        if (len == 0) { f->rax = 0; return (u64)f; }
+        if (len > 1024) len = 1024; // safety limit
 
-        if (validate_user_ptr(task_current_cr3(), (u64)buf, len, 0) != 0) {
-            f->rax = (u64)-1;   // -EFAULT
+        char kbuf[1024];
+        if (copy_from_user(task_current_cr3(), kbuf, (const void *)f->rsi, len) != 0) {
+            f->rax = (u64)-1;
             return (u64)f;
         }
 
         for (u64 i = 0; i < len; i++) {
-            char c = buf[i];
+            char c = kbuf[i];
             if (c == 0) break;
             if (c == '\n') printk("\n");
             else if (c == '\b') printk("\b");
@@ -132,23 +129,26 @@ u64 syscall_dispatch(struct syscall_frame *f) {
     }
 
     case SYS_READ: {
-        char *ubuf = (char *)f->rsi;
         u64 len = f->rdx;
         if (len == 0) { f->rax = 0; return (u64)f; }
-
-        if (validate_user_ptr(task_current_cr3(), (u64)ubuf, len, 1) != 0) {
-            f->rax = (u64)-1;
-            return (u64)f;
-        }
+        if (len > 1024) len = 1024;
 
         if (!keyboard_has_data()) { f->rax = (u64)-1; return (u64)f; }
 
+        char kbuf[1024];
         u64 got = 0;
         while (got < len) {
             int c = keyboard_getchar();
             if (c < 0) break;
-            ubuf[got++] = (char)c;
+            kbuf[got++] = (char)c;
             if (c == '\n') break;
+        }
+
+        if (got == 0) { f->rax = (u64)-1; return (u64)f; }
+
+        if (copy_to_user(task_current_cr3(), (void *)f->rsi, kbuf, got) != 0) {
+            f->rax = (u64)-1;
+            return (u64)f;
         }
         f->rax = got;
         return (u64)f;
@@ -191,22 +191,23 @@ u64 syscall_dispatch(struct syscall_frame *f) {
         return (u64)f;
 
     case SYS_TASKS: {
-        task_info_t *ubuf = (task_info_t *)f->rdi;
         int maxn = (int)f->rsi;
         if (maxn <= 0) { f->rax = 0; return (u64)f; }
         if (maxn > MAX_TASKS) maxn = MAX_TASKS;
 
-        u64 bytes = (u64)maxn * sizeof(task_info_t);
-        if (validate_user_ptr(task_current_cr3(), (u64)ubuf, bytes, 1) != 0) {
-            f->rax = (u64)-1;
-            return (u64)f;
-        }
-
+        task_info_t kbuf[MAX_TASKS];
         int written = 0;
         for (int i = 0; i < MAX_TASKS && written < maxn; i++) {
-            task_info_t info;
-            if (task_get_info(i, &info) == 0) {
-                ubuf[written++] = info;
+            if (task_get_info(i, &kbuf[written]) == 0) {
+                written++;
+            }
+        }
+
+        u64 bytes = (u64)written * sizeof(task_info_t);
+        if (bytes > 0) {
+            if (copy_to_user(task_current_cr3(), (void *)f->rdi, kbuf, bytes) != 0) {
+                f->rax = (u64)-1;
+                return (u64)f;
             }
         }
         f->rax = (u64)written;

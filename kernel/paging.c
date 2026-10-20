@@ -363,3 +363,18 @@ u64 hhdm_offset(void) {
         ? hhdm_request.response->offset
         : HHDM_BASE;
 }
+int copy_from_user(u64 pml4_phys, void *dst, const void *src, u64 len) {
+    if (validate_user_ptr(pml4_phys, (u64)src, len, 0) != 0) return -1;
+    u8 *d = (u8 *)dst;
+    const u8 *s = (const u8 *)src;
+    for (u64 i = 0; i < len; i++) d[i] = s[i];
+    return 0;
+}
+
+int copy_to_user(u64 pml4_phys, void *dst, const void *src, u64 len) {
+    if (validate_user_ptr(pml4_phys, (u64)dst, len, 1) != 0) return -1;
+    u8 *d = (u8 *)dst;
+    const u8 *s = (const u8 *)src;
+    for (u64 i = 0; i < len; i++) d[i] = s[i];
+    return 0;
+}

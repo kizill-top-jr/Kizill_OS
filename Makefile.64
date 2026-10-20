@@ -1,7 +1,8 @@
 CC = x86_64-elf-gcc
 LD = x86_64-elf-ld
 ASM = nasm
-CFLAGS = -ffreestanding -O2 -Wall -Wextra -nostdlib -mno-red-zone -mcmodel=kernel -Iinclude
+CFLAGS = -ffreestanding -O2 -Wall -Wextra -nostdlib -mno-red-zone -mcmodel=kernel -Iinclude \
+         -fno-pic -fno-pie -fno-stack-protector -mno-sse -mno-sse2 -mno-mmx -mno-avx -fno-strict-aliasing
 LDFLAGS = -T arch/x86_64/boot/linker.ld -nostdlib -z max-page-size=0x1000
 
 OBJS = arch/x86_64/boot/boot.o \

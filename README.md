@@ -18,7 +18,7 @@
 
 Kizill_OS is an independent x86_64 operating system built completely from scratch. The goal is to understand how computers work under the hood, without relying on decades of legacy code. It features its own boot process, memory manager, scheduler, and userspace.
 
-## ⚙️hat Works (v0.9.2)
+## ⚙ What Works (v0.9.2)
 
 * **Boot:** Limine bootloader, Long mode, HHDM.
 * **CPU:** GDT64, TSS, IDT64, IST for Double Fault.
@@ -38,7 +38,7 @@ Kizill_OS is an independent x86_64 operating system built completely from scratc
 * SMP (Multi-core), APIC/IOAPIC.
 * Network stack.
 
-## 🛠 Build Instructions
+## 🛠  Build Instructions
 
 **Requirements:** `x86_64-elf-gcc`, `x86_64-elf-ld`, `nasm`, `xorriso`, `qemu-system-x86_64`, and Limine binaries (see `limine/README.md`).
 

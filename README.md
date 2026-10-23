@@ -68,5 +68,5 @@ To run userspace tests, type test in the shell.
 📜 License
 
 This project is licensed under the GNU General Public License v3.0 (GPLv3). See the [LICENSE](https://github.com/kizill-top-jr/Kizill_OS?tab=GPL-3.0-1-ov-file) file for details.
-
+ 
 By Kizill_TOP.

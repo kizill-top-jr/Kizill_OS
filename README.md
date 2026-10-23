@@ -53,11 +53,17 @@ Project Structure
 text
 
 kizill-os/
+
 ├── arch/          # x86_64 specific code (boot, gdt, idt, pic)
+
 ├── kernel/        # Architecture-independent core (mm, sched, fs, syscall)
+
 ├── include/       # Headers (kernel/ and uapi/)
+
 ├── userspace/     # Ring 3 programs (shell, hello, tests)
+
 ├── tools/         # Build scripts (make_initramfs.sh)
+
 └── docs/          # Design decisions and documentation
 
 🧪 Testing

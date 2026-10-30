@@ -24,8 +24,8 @@ OBJS = arch/x86_64/boot/boot.o \
        kernel/syscall.o \
        kernel/tar.o \
        kernel/elf.o \
-       kernel/keyboard.o
-
+       kernel/keyboard.o \
+       kernel/ata.o
 all: kernel.elf
 
 kernel.elf: $(OBJS)

@@ -13,6 +13,7 @@
 #include <kernel/tar.h>
 #include <kernel/keyboard.h>
 #include <kernel/elf.h>
+#include <kernel/ata.h>
 
 __attribute__((section(".limine_requests_start"), used))
 volatile u64 limine_requests_start_marker[4] = LIMINE_REQUESTS_START_MARKER;
@@ -122,7 +123,7 @@ void kmain(void) {
     fb_init(fb);
     fb_clear(FB_BLACK);
 
-    printk_color("Kizill_OS v0.9.1 x86_64\n", FB_GREEN);
+    printk_color("Kizill_OS v0.9.2 x86_64\n", FB_GREEN);
     printk("fb:  "); printk_dec(fb->width); printk("x");
     printk_dec(fb->height); printk(" "); printk_dec(fb->bpp); printk("bpp\n\n");
 
@@ -131,6 +132,7 @@ void kmain(void) {
     keyboard_init();
     pmm_init();
     paging_init();
+    ata_init();
 
     u64 hhdm = hhdm_request.response->offset;
 

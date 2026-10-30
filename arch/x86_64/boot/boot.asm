@@ -16,9 +16,21 @@ _start:
     mov cr0, rax
 
     mov rax, cr4
-    or  ax, (3 << 9)      ; set CR4.OSFXSR + CR4.OSXMMEXCPT
-    or  ax, (1 << 20)     ; set CR4.SMEP
-    and rax, ~(1 << 17)   ; CLEAR CR4.PCIDE
+    or  eax, (3 << 9)      ; set CR4.OSFXSR + CR4.OSXMMEXCPT
+    and rax, ~(1 << 17)    ; CLEAR CR4.PCIDE
+
+    ; check CPUID.07h.EBX[7] for SMEP support
+    push rax
+    push rbx
+    mov eax, 7
+    mov ecx, 0
+    cpuid
+    test ebx, (1 << 7)     ; test SMEP bit
+    pop rbx
+    pop rax
+    jz .no_smep
+    or  eax, (1 << 20)     ; SMEP supported - enable it
+.no_smep:
     mov cr4, rax
 
     ; zero .bss — Limine doesn't guarantee it

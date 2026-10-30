@@ -5,6 +5,7 @@
 *.iso
 iso/
 iso64/
+build/
 
 # Limine binaries (download separately)
 limine/*.bin

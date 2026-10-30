@@ -19,4 +19,10 @@ xorriso -as mkisofs -b limine-bios-cd.bin \
     -no-emul-boot -boot-load-size 4 -boot-info-table \
     iso64/ -o kizill64.iso
 
-qemu-system-x86_64 -cdrom kizill64.iso -m 512M -serial stdio
+# Create disk image if it doesn't exist
+if [ ! -f disk.img ]; then
+    echo "creating empty disk.img..."
+    dd if=/dev/zero of=disk.img bs=1M count=10
+fi
+
+qemu-system-x86_64 -cdrom kizill64.iso -m 512M -serial stdio -drive file=disk.img,format=raw,if=ide

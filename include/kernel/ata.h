@@ -30,5 +30,6 @@
 #define ATA_CMD_IDENTIFY  0xEC
 
 void ata_init(void);
+int ata_read_sector(u32 lba, u8 *buffer);
 
 #endif

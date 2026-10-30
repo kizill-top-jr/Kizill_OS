@@ -134,6 +134,19 @@ void kmain(void) {
     paging_init();
     ata_init();
 
+    // Test reading sector 0
+    u8 sector_buf[512];
+    if (ata_read_sector(0, sector_buf) == 0) {
+        serial_puts("ata: read sector 0 success! First bytes: ");
+        serial_hex(sector_buf[0]);
+        serial_puts(" ");
+        serial_hex(sector_buf[1]);
+        serial_puts(" ");
+        serial_hex(sector_buf[2]);
+        serial_puts("\n");
+    } else {
+        serial_puts("ata: read sector 0 FAILED\n");
+    }
     u64 hhdm = hhdm_request.response->offset;
 
     // ---- test pml4_create ----

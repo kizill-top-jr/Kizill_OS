@@ -112,3 +112,22 @@ void kfs_free_block(u32 block) {
     bitmap_sector[byte_idx] &= ~(1 << bit);
     ata_write_sector(10 + sec, bitmap_sector);
 }
+
+u32 kfs_alloc_inode(void) {
+    u8 sector[512];
+    // inode table starts at LBA 2, 64 inodes * 64 bytes = 4096 bytes = 8 sectors
+    for (u32 sec = 0; sec < 8; sec++) {
+        if (ata_read_sector(2 + sec, sector) != 0) return 0;
+
+        struct kfs_inode *inodes = (struct kfs_inode *)sector;
+        u32 count = 512 / sizeof(struct kfs_inode);
+
+        for (u32 i = 0; i < count; i++) {
+            if (inodes[i].type == KFS_TYPE_FREE) {
+                u32 inode_num = (sec * count) + i;
+                return inode_num;
+            }
+        }
+    }
+    return 0; // no free inodes
+}

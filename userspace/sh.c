@@ -328,7 +328,6 @@ int main(void) {
             } else {
                 print("Disk is empty or error.\n");
             }
-        }
        } else if (str_eq(cmd, "pid")) {
            print("pid: "); print_dec(getpid_()); print("\n");
        } else if (str_eq(cmd, "uptime")) {

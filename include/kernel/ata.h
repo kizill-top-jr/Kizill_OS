@@ -29,7 +29,9 @@
 #define ATA_CMD_WRITE_PIO 0x30
 #define ATA_CMD_IDENTIFY  0xEC
 
+// // ATA driver public API
 void ata_init(void);
 int ata_read_sector(u32 lba, u8 *buffer);
+int ata_write_sector(u32 lba, const u8 *buffer);
 
 #endif

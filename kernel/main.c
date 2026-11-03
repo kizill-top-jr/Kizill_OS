@@ -158,6 +158,7 @@ void kmain(void) {
     u64 hhdm = hhdm_request.response->offset;
 
     kfs_init();
+    kfs_mount();
 
     // ---- test pml4_create ----
     u64 test_pml4 = pml4_create();

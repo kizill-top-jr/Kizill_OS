@@ -15,5 +15,7 @@
 #define SYS_REBOOT  103
 #define EAGAIN      11
 #define ECHILD      10
+#define SYS_KFS_WRITE 104
+#define SYS_KFS_READ  105
 
 #endif

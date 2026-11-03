@@ -134,18 +134,25 @@ void kmain(void) {
     paging_init();
     ata_init();
 
-    // Test reading sector 0
+    // Test write + read sector 0
     u8 sector_buf[512];
+    for (int i = 0; i < 512; i++) sector_buf[i] = 0;
+    const char *test_str = "Kizill_OS KFS v0.1";
+    for (int i = 0; test_str[i]; i++) sector_buf[i] = test_str[i];
+
+    if (ata_write_sector(0, sector_buf) == 0) {
+        serial_puts("ata: write sector 0 success\n");
+    } else {
+        serial_puts("ata: write sector 0 FAILED\n");
+    }
+
+    for (int i = 0; i < 512; i++) sector_buf[i] = 0;
     if (ata_read_sector(0, sector_buf) == 0) {
-        serial_puts("ata: read sector 0 success! First bytes: ");
-        serial_hex(sector_buf[0]);
-        serial_puts(" ");
-        serial_hex(sector_buf[1]);
-        serial_puts(" ");
-        serial_hex(sector_buf[2]);
+        serial_puts("ata: read back sector 0: ");
+        for (int i = 0; i < 17; i++) serial_putc(sector_buf[i]);
         serial_puts("\n");
     } else {
-        serial_puts("ata: read sector 0 FAILED\n");
+        serial_puts("ata: read back FAILED\n");
     }
     u64 hhdm = hhdm_request.response->offset;
 

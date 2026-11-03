@@ -114,7 +114,7 @@ int ata_read_sector(u32 lba, u8 *buffer) {
     outb(ATA_PRIMARY_LBA_LO, (u8)lba);
     outb(ATA_PRIMARY_LBA_MID, (u8)(lba >> 8));
     outb(ATA_PRIMARY_LBA_HI, (u8)(lba >> 16));
-    
+
     // 3. Send READ command
     outb(ATA_PRIMARY_COMMAND, ATA_CMD_READ_PIO);
     ata_wait_400ns();
@@ -142,6 +142,48 @@ int ata_read_sector(u32 lba, u8 *buffer) {
         u16 data;
         asm volatile("inw %1, %0" : "=a"(data) : "d"((u16)ATA_PRIMARY_DATA));
         buf16[i] = data;
+    }
+
+    return 0;
+}
+int ata_write_sector(u32 lba, const u8 *buffer) {
+    outb(ATA_PRIMARY_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
+    ata_wait_400ns();
+    outb(ATA_PRIMARY_SECCOUNT, 1);
+    outb(ATA_PRIMARY_LBA_LO, (u8)lba);
+    outb(ATA_PRIMARY_LBA_MID, (u8)(lba >> 8));
+    outb(ATA_PRIMARY_LBA_HI, (u8)(lba >> 16));
+    outb(ATA_PRIMARY_COMMAND, ATA_CMD_WRITE_PIO);
+    ata_wait_400ns();
+
+    u32 timeout = 1000000;
+    u8 status = inb(ATA_PRIMARY_STATUS);
+    while (status & ATA_SR_BSY) {
+        status = inb(ATA_PRIMARY_STATUS);
+        if (--timeout == 0) return -1;
+    }
+
+    timeout = 1000000;
+    while (1) {
+        status = inb(ATA_PRIMARY_STATUS);
+        if (status & ATA_SR_ERR) return -1;
+        if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break;
+        if (--timeout == 0) return -1;
+    }
+
+    const u16 *buf16 = (const u16 *)buffer;
+    for (int i = 0; i < 256; i++) {
+        outw(ATA_PRIMARY_DATA, buf16[i]);
+    }
+
+    // flush write cache
+    outb(ATA_PRIMARY_COMMAND, 0xE7);
+    ata_wait_400ns();
+    timeout = 1000000;
+    while (1) {
+        status = inb(ATA_PRIMARY_STATUS);
+        if (!(status & ATA_SR_BSY)) break;
+        if (--timeout == 0) return -1;
     }
 
     return 0;

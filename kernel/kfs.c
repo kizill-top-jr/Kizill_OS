@@ -19,3 +19,26 @@ void kfs_init(void) {
         serial_puts("kfs: superblock write FAILED\n"); // nadeus takogo ne budet
     }
 }
+
+int kfs_mount(void) {
+    u8 sector[512];
+    if (ata_read_sector(1, sector) != 0) {
+        serial_puts("kfs: mount fail (ata read)\n");
+        return -1;
+    }
+
+    struct kfs_superblock *sb = (struct kfs_superblock *)sector;
+
+    if (sb->magic != KFS_MAGIC) {
+        serial_puts("kfs: mount fail (bad magic)\n");
+        return -1;
+    }
+
+    serial_puts("kfs: mounted. block_size=");
+    serial_dec(sb->block_size);
+    serial_puts(" inodes=");
+    serial_dec(sb->inode_count);
+    serial_puts("\n");
+
+    return 0;
+}

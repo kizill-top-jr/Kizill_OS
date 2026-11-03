@@ -10,6 +10,9 @@ struct kfs_superblock {
     u32 block_size;
     u32 inode_count;
     u32 free_blocks;
+    u32 inode_table_start;
+    u32 bitmap_start;
+    u32 data_start;
 };
 
 #define KFS_TYPE_FREE 0

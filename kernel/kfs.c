@@ -51,7 +51,13 @@ int kfs_mount(void) {
         return -1;
     }
 
-    if (ata_read_sector(sb->inode_table_start, sector) != 0) return -1;
+    // Save superblock fields before overwriting the buffer!
+    u32 block_size = sb->block_size;
+    u32 inode_count = sb->inode_count;
+    u32 inode_table = sb->inode_table_start;
+
+    // Read root inode
+    if (ata_read_sector(inode_table, sector) != 0) return -1;
     struct kfs_inode *root = (struct kfs_inode *)sector;
 
     if (root->magic != 0x494E4F44) {
@@ -60,9 +66,9 @@ int kfs_mount(void) {
     }
 
     serial_puts("kfs: mounted. block_size=");
-    serial_dec(sb->block_size);
+    serial_dec(block_size);
     serial_puts(" inodes=");
-    serial_dec(sb->inode_count);
+    serial_dec(inode_count);
     serial_puts(" root_type=");
     serial_dec(root->type);
     serial_puts("\n");

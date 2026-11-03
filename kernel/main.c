@@ -14,6 +14,7 @@
 #include <kernel/keyboard.h>
 #include <kernel/elf.h>
 #include <kernel/ata.h>
+#include <kernel/kfs.h>
 
 __attribute__((section(".limine_requests_start"), used))
 volatile u64 limine_requests_start_marker[4] = LIMINE_REQUESTS_START_MARKER;
@@ -155,6 +156,8 @@ void kmain(void) {
         serial_puts("ata: read back FAILED\n");
     }
     u64 hhdm = hhdm_request.response->offset;
+
+    kfs_init();
 
     // ---- test pml4_create ----
     u64 test_pml4 = pml4_create();

@@ -159,6 +159,7 @@ void kmain(void) {
 
     kfs_init();
     kfs_mount();
+    kfs_create("test.txt");
 
     // ---- test pml4_create ----
     u64 test_pml4 = pml4_create();

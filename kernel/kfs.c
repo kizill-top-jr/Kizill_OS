@@ -11,7 +11,7 @@ void kfs_init(void) {
 
     u8 sector[512];
     for (int i = 0; i < 512; i++) sector[i] = 0;
-    for (int i = 0; i < sizeof(sb); i++) sector[i] = ((u8*)&sb)[i];
+    for (u64 i = 0; i < sizeof(sb); i++) sector[i] = ((u8*)&sb)[i];
 
     if (ata_write_sector(1, sector) == 0) {
         serial_puts("kfs: superblock written\n");

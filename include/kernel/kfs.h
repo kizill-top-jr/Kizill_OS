@@ -26,10 +26,12 @@ struct kfs_inode {
     u32 block[12];  // 4KB
 };
 
+u32 kfs_alloc_inode(void);
 u32 kfs_alloc_block(void);
-void kfs_free_block(u32 block);
 
+void kfs_free_block(u32 block);
 void kfs_init(void);
+
 int kfs_mount(void);
 
 #endif

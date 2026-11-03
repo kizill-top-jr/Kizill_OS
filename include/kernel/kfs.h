@@ -12,6 +12,17 @@ struct kfs_superblock {
     u32 free_blocks;
 };
 
+#define KFS_TYPE_FREE 0
+#define KFS_TYPE_FILE 1
+#define KFS_TYPE_DIR  2
+
+struct kfs_inode {
+    u32 magic;      // 0x494E4F44 "INOD"
+    u32 type;       // 0=free, 1=file, 2=dir
+    u32 size;
+    u32 block[12];  // 4KB
+};
+
 void kfs_init(void);
 int kfs_mount(void);
 

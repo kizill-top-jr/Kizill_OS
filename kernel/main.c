@@ -150,7 +150,7 @@ void kmain(void) {
     for (int i = 0; i < 512; i++) sector_buf[i] = 0;
     if (ata_read_sector(0, sector_buf) == 0) {
         serial_puts("ata: read back sector 0: ");
-        for (int i = 0; i < 17; i++) serial_putc(sector_buf[i]);
+        for (int i = 0; i < 18; i++) serial_putc(sector_buf[i]);
         serial_puts("\n");
     } else {
         serial_puts("ata: read back FAILED\n");

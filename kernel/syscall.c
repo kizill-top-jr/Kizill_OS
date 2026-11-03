@@ -252,7 +252,6 @@ u64 syscall_dispatch(struct syscall_frame *f) {
 
     case SYS_EXIT:
         return task_exit_current((int)f->rdi);
-    }
 
     case SYS_KFS_WRITE: {
         char kbuf[128];

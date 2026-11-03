@@ -10,6 +10,7 @@
 #include <kernel/tar.h>
 #include <kernel/limine.h>
 #include <uapi/syscall.h>
+#include <kernel/kfs.h>
 
 extern volatile struct limine_module_request module_request;
 extern volatile u64 g_ticks;
@@ -251,6 +252,33 @@ u64 syscall_dispatch(struct syscall_frame *f) {
 
     case SYS_EXIT:
         return task_exit_current((int)f->rdi);
+    }
+
+    case SYS_KFS_WRITE: {
+        char kbuf[128];
+        u64 len = f->rsi;
+        if (len > 127) len = 127;
+        if (copy_from_user(task_current_cr3(), kbuf, (const void *)f->rdi, len) != 0) {
+            f->rax = (u64)-1;
+            return (u64)f;
+        }
+        kbuf[len] = 0;
+        f->rax = (u64)kfs_write("test.txt", (const u8 *)kbuf, len);
+        return (u64)f;
+    }
+
+    case SYS_KFS_READ: {
+        u8 kbuf[128];
+        int n = kfs_read("test.txt", kbuf, 128);
+        if (n > 0) {
+            if (copy_to_user(task_current_cr3(), (void *)f->rdi, kbuf, n) != 0) {
+                f->rax = (u64)-1;
+                return (u64)f;
+            }
+        }
+        f->rax = (u64)n;
+        return (u64)f;
+    }
 
     default:
         f->rax = (u64)-1; // -ENOSYS

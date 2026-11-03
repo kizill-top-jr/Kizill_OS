@@ -34,5 +34,6 @@ void kfs_init(void);
 
 int kfs_mount(void);
 int kfs_create(const char *name);
+int kfs_write(const char *name, const u8 *data, u32 size);
 
 #endif

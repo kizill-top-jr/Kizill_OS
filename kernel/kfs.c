@@ -75,3 +75,40 @@ int kfs_mount(void) {
 
     return 0;
 }
+u32 kfs_alloc_block(void) {
+    u8 bitmap_sector[512];
+
+    // bitmap is 8 sectors (4096 bytes = 32768 bits = 32768 blocks)
+    for (u32 sec = 0; sec < 8; sec++) {
+        if (ata_read_sector(10 + sec, bitmap_sector) != 0) return 0;
+
+        for (u32 i = 0; i < 512; i++) {
+            if (bitmap_sector[i] != 0xFF) { // if not all bits are 1
+                for (u32 bit = 0; bit < 8; bit++) {
+                    if (!(bitmap_sector[i] & (1 << bit))) {
+                        // found free block
+                        bitmap_sector[i] |= (1 << bit);
+                        ata_write_sector(10 + sec, bitmap_sector);
+
+                        u32 block_num = (sec * 512 * 8) + (i * 8) + bit;
+                        return 20 + block_num; // data starts at LBA 20
+                    }
+                }
+            }
+        }
+    }
+    return 0; // no free blocks
+}
+
+void kfs_free_block(u32 block) {
+    u32 block_num = block - 20;
+    u32 sec = block_num / (512 * 8);
+    u32 byte_idx = (block_num / 8) % 512;
+    u32 bit = block_num % 8;
+
+    u8 bitmap_sector[512];
+    if (ata_read_sector(10 + sec, bitmap_sector) != 0) return;
+
+    bitmap_sector[byte_idx] &= ~(1 << bit);
+    ata_write_sector(10 + sec, bitmap_sector);
+}

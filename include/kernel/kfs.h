@@ -13,5 +13,6 @@ struct kfs_superblock {
 };
 
 void kfs_init(void);
+int kfs_mount(void);
 
 #endif

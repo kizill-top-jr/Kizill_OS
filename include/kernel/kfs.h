@@ -33,5 +33,6 @@ void kfs_free_block(u32 block);
 void kfs_init(void);
 
 int kfs_mount(void);
+int kfs_create(const char *name);
 
 #endif

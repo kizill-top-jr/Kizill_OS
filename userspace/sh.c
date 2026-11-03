@@ -161,7 +161,7 @@ int main(void) {
     char buf[8];
 
     clear_();
-    write(1, "Kizill_OS Shell v0.9.1 - happy shell)\n", 38);
+    write(1, "Kizill_OS Shell v0.9.2 - happy shell)\n", 38);
 
     while (1) {
         len = 0;
@@ -311,6 +311,24 @@ int main(void) {
            print("hobby OS from scratch \n");
            print("x86_64, C, NASM \n");
            print("grows where nothing else can\n");
+        } else if (str_pref(cmd, "carve ")) {
+            const char *text = cmd + 6;
+            long r = sys_call(SYS_KFS_WRITE, (long)text, strlen_(text), 0);
+            if (r >= 0) print("Carved into disk.\n");
+            else print("Carving failed.\n");
+        } else if (str_eq(cmd, "peek")) {
+            char buf[128];
+            long n = sys_call(SYS_KFS_READ, (long)buf, 128, 0);
+            if (n > 0) {
+                for (int i = 0; i < n; i++) {
+                    char s[2] = { buf[i], 0 };
+                    print(s);
+                }
+                print("\n");
+            } else {
+                print("Disk is empty or error.\n");
+            }
+        }
        } else if (str_eq(cmd, "pid")) {
            print("pid: "); print_dec(getpid_()); print("\n");
        } else if (str_eq(cmd, "uptime")) {

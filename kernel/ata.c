@@ -6,6 +6,10 @@ static inline void outb(u16 port, u8 val) {
     asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
+static inline void outw(u16 port, u16 val) {
+    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+}
+
 static inline u8 inb(u16 port) {
     u8 ret;
     asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
@@ -104,6 +108,7 @@ void ata_init(void) {
     }
     serial_puts("\n");
 }
+
 int ata_read_sector(u32 lba, u8 *buffer) {
     // 1. Select drive 0 (master), LBA mode, send high bits of LBA
     outb(ATA_PRIMARY_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
@@ -146,7 +151,9 @@ int ata_read_sector(u32 lba, u8 *buffer) {
 
     return 0;
 }
+
 int ata_write_sector(u32 lba, const u8 *buffer) {
+
     outb(ATA_PRIMARY_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
     ata_wait_400ns();
     outb(ATA_PRIMARY_SECCOUNT, 1);

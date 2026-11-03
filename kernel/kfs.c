@@ -131,3 +131,30 @@ u32 kfs_alloc_inode(void) {
     }
     return 0; // no free inodes
 }
+
+#include <kernel/heap.h> // maybe not needed, but good to have
+
+int kfs_create(const char *name) {
+    (void)name; // for now, just alloc
+    u32 inode_num = kfs_alloc_inode();
+    if (inode_num == 0) return -1;
+
+    u8 sector[512];
+    u32 sec = inode_num / (512 / sizeof(struct kfs_inode));
+    u32 idx = inode_num % (512 / sizeof(struct kfs_inode));
+
+    if (ata_read_sector(2 + sec, sector) != 0) return -1;
+    struct kfs_inode *inodes = (struct kfs_inode *)sector;
+
+    inodes[idx].magic = 0x494E4F44;
+    inodes[idx].type = KFS_TYPE_FILE;
+    inodes[idx].size = 0;
+    for (int i = 0; i < 12; i++) inodes[idx].block[i] = 0;
+
+    if (ata_write_sector(2 + sec, sector) != 0) return -1;
+
+    serial_puts("kfs: created file (inode ");
+    serial_dec(inode_num);
+    serial_puts(")\n");
+    return 0;
+}

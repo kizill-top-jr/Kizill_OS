@@ -42,10 +42,7 @@ void kfs_init(void) {
 
 int kfs_mount(void) {
     u8 sector[512];
-    if (ata_read_sector(1, sector) != 0) {
-        serial_puts("kfs: mount fail (ata read)\n");
-        return -1;
-    }
+    if (ata_read_sector(1, sector) != 0) return -1;
 
     struct kfs_superblock *sb = (struct kfs_superblock *)sector;
 
@@ -54,10 +51,20 @@ int kfs_mount(void) {
         return -1;
     }
 
+    if (ata_read_sector(sb->inode_table_start, sector) != 0) return -1;
+    struct kfs_inode *root = (struct kfs_inode *)sector;
+
+    if (root->magic != 0x494E4F44) {
+        serial_puts("kfs: mount fail (bad root inode)\n");
+        return -1;
+    }
+
     serial_puts("kfs: mounted. block_size=");
     serial_dec(sb->block_size);
     serial_puts(" inodes=");
     serial_dec(sb->inode_count);
+    serial_puts(" root_type=");
+    serial_dec(root->type);
     serial_puts("\n");
 
     return 0;

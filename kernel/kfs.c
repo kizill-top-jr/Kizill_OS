@@ -158,6 +158,7 @@ int kfs_create(const char *name) {
     serial_puts(")\n");
     return 0;
 }
+
 int kfs_write(const char *name, const u8 *data, u32 size) {
     (void)name; // Ignored for now, just writing to inode 1
 
@@ -205,4 +206,33 @@ int kfs_write(const char *name, const u8 *data, u32 size) {
     serial_dec(inode_num);
     serial_puts("\n");
     return 0;
+}
+
+int kfs_read(const char *name, u8 *buffer, u32 max_size) {
+    (void)name;
+    u32 inode_num = 1;
+    u8 sector[512];
+    u32 sec = inode_num / (512 / sizeof(struct kfs_inode));
+    u32 idx = inode_num % (512 / sizeof(struct kfs_inode));
+
+    if (ata_read_sector(2 + sec, sector) != 0) return -1;
+    struct kfs_inode *inodes = (struct kfs_inode *)sector;
+
+    if (inodes[idx].type != KFS_TYPE_FILE) return -1;
+
+    u32 size = inodes[idx].size;
+    if (size > max_size) size = max_size;
+    if (size == 0 || inodes[idx].block[0] == 0) return 0;
+
+    u32 data_block = inodes[idx].block[0];
+    u32 sectors_needed = (size + 511) / 512;
+
+    for (u32 s = 0; s < sectors_needed; s++) {
+        if (ata_read_sector(data_block + s, sector) != 0) return -1;
+        u32 chunk = size - (s * 512);
+        if (chunk > 512) chunk = 512;
+        for (u32 i = 0; i < chunk; i++) buffer[s * 512 + i] = sector[i];
+    }
+
+    return size;
 }

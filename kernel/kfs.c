@@ -6,18 +6,38 @@ void kfs_init(void) {
     struct kfs_superblock sb;
     sb.magic = KFS_MAGIC;
     sb.block_size = 4096;
-    sb.inode_count = 0;
-    sb.free_blocks = 0;
+    sb.inode_count = 64;             // 64 inoda
+    sb.free_blocks = 2500;           // 10MB / 4KB
+    sb.inode_table_start = 2;        // LBA 2 (sector 2)
+    sb.bitmap_start = 10;            // LBA 10
+    sb.data_start = 20;              // LBA 20
 
     u8 sector[512];
+
     for (int i = 0; i < 512; i++) sector[i] = 0;
     for (u64 i = 0; i < sizeof(sb); i++) sector[i] = ((u8*)&sb)[i];
+    ata_write_sector(1, sector);
 
-    if (ata_write_sector(1, sector) == 0) {
-        serial_puts("kfs: superblock written\n");
-    } else {
-        serial_puts("kfs: superblock write FAILED\n"); // nadeus takogo ne budet
+    for (int i = 0; i < 512; i++) sector[i] = 0;
+    for (int sec = 0; sec < 8; sec++) {
+        ata_write_sector(sb.inode_table_start + sec, sector);
     }
+
+    for (int sec = 0; sec < 8; sec++) {
+        ata_write_sector(sb.bitmap_start + sec, sector);
+    }
+
+    struct kfs_inode root;
+    root.magic = 0x494E4F44;
+    root.type = KFS_TYPE_DIR;
+    root.size = 0;
+    for (int i = 0; i < 12; i++) root.block[i] = 0;
+
+    for (int i = 0; i < 512; i++) sector[i] = 0;
+    for (u64 i = 0; i < sizeof(root); i++) sector[i] = ((u8*)&root)[i];
+    ata_write_sector(sb.inode_table_start, sector);
+
+    serial_puts("kfs: formatted, inode table and bitmap initialized\n");
 }
 
 int kfs_mount(void) {

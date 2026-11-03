@@ -160,6 +160,18 @@ void kmain(void) {
     kfs_init();
     kfs_mount();
     kfs_create("test.txt");
+    const char *msg = "Hello KFS!";
+    kfs_write("test.txt", (const u8 *)msg, 11);
+
+    u8 read_buf[128];
+    int read_len = kfs_read("test.txt", read_buf, 128);
+    if (read_len > 0) {
+        serial_puts("kfs: read back: ");
+        for (int i = 0; i < read_len; i++) serial_putc(read_buf[i]);
+        serial_puts("\n");
+    } else {
+        serial_puts("kfs: read failed\n");
+    }
 
     // ---- test pml4_create ----
     u64 test_pml4 = pml4_create();
